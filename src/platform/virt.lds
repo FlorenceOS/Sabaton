@@ -6,33 +6,28 @@ PHDRS {
   none   PT_NULL FLAGS(0);
 }
 
-SECTIONS {
-  . = 0;
+__kernel_file_loc = 0x4000000;
+__dram_base       = 0x40000000;
 
+SECTIONS {
+  . = 0x40100000;
   .blob : {
+    __blob_base = .;
     *(.text.entry)
     *(.text*)
     *(.data*)
     *(.rodata*)
+    *(.bss*)
+    . = ALIGN(0x40);
+    __blob_end = .;
   }
 
-  .strtab : {
-    *(.strtab*) 
-  }
+  . = ALIGN(4K);
+  __pmm_base = .;
+  . += 64M;
+  __kernel_load_base = .;
 
-  .symtab : {
-    *(.symtab) 
-  }
-
-  .comment : {
-    *(.comment*) 
-  }
-
-  .shstrtab : {
-    *(.shstrtab*) 
-  }
-
-  /DISCARD/ : {
-    *(*)
+  .eh_frame : {
+    *(.eh_frame*)
   }
 }

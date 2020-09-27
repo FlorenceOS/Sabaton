@@ -8,7 +8,7 @@ using u64 = unsigned long long;
 extern "C" void putchar(char chr);
 extern "C" void puts(char const *str);
 
-inline void print_hex_impl(unsigned long long num, int nibbles) { for(int i = nibbles - 1; i >= 0; -- i) putchar("0123456789ABCDEF"[(num >> (i * 4))&0xF]); }
+void print_hex_impl(unsigned long long num, int nibbles);
 #define print_hex(v) print_hex_impl((unsigned long long)(v), sizeof(v) * 2);
 #define log_value(s, v) \
   do { \
@@ -17,10 +17,6 @@ inline void print_hex_impl(unsigned long long num, int nibbles) { for(int i = ni
     putchar('\n');\
   }while(0)
 
+extern "C" u64 page_size;
+
 void panic(char const *reason) __attribute__((noreturn));
-
-struct File;
-
-File *file_open(char const *path);
-void file_read(u8 *buf, File *f, u64 size);
-u64 file_size(File *f);

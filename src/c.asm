@@ -1,6 +1,8 @@
 .global memcpy
 .global memset
 .global strcmp
+.global strncmp
+.global strlen
 
 .section .text.memcpy
 memcpy:
@@ -28,6 +30,19 @@ memset:
 1:
   RET
 
+.section .text.strcmp.finish
+equal:
+  MOV X0, #0
+  RET
+
+lhsgreater:
+  MOV X0, #1
+  RET
+
+lhsless:
+  MOV X0, #~0
+  RET
+
 .section .text.strcmp
 strcmp:
   LDRB W2, [X0]
@@ -41,14 +56,30 @@ strcmp:
   CBZ W2, equal
 
   B strcmp
-equal:
-  MOV X0, #0
-  RET
 
-lhsgreater:
-  MOV X0, #1
-  RET
+.section .text.strncmp
+strncmp:
+  CBZ X2, equal
+  SUB X2, X2, #1
 
-lhsless:
-  MOV X0, #~0
+  LDRB W4, [X0]
+  LDRB W3, [X1]
+  ADD X0, X0, #1
+  ADD X1, X1, #1
+
+  CMP W4, W3
+  B.LO lhsless
+  B.HI lhsgreater
+  CBZ W4, equal
+
+  B strncmp
+
+.section .text.strlen
+strlen:
+  MOV X1, X0
+1:LDRB W2, [X1]
+  CBZ W2, 1f
+  ADD X1, X1, #1
+  B 1b
+1:SUB X0, X1, X0 // return ptr - begin
   RET

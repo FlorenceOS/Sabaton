@@ -59,11 +59,11 @@ void validate_elf() {
      header->ident[3] != 'F')
     panic("Invalid ELF magic!");
 
-  if(header->type != 0x03) {
-    panic("ELF not PIE!");
+  if(header->type != 0x02) {
+    panic("ELF not ET_EXEC!");
   }
 
-  if(header->entry < 0x8000000000000000ULL)
+  if(header->entry < (1ULL << 63))
     panic("Not higher half!");
 
   puts("ELF verification success.\n");
@@ -99,7 +99,8 @@ namespace {
     __builtin_memcpy((void *)(load_offset + ph->vaddr), kernel_file_loc + ph->offset, ph->filesz);
     __builtin_memset((void *)(load_offset + ph->vaddr + ph->filesz), 0, ph->memsz - ph->filesz);
 
-    page_kernel_section(ph->vaddr, load_offset + ph->vaddr, ph->memsz, {.write = (bool)(ph->flags&2), .execute = (bool)(ph->flags&1)});
+    page_section(ph->vaddr, load_offset + ph->vaddr, ph->memsz, {.write = (bool)(ph->flags&2), .execute = (bool)(ph->flags&1)});
+    // TODO: Relocations
   }
 }
 
@@ -145,7 +146,7 @@ void load_elf() {
   }
 
   log_value("Lowest kernel address was ", addr_low);
-  
+
   u64 const load_offset = kernel_load_base - addr_low;
 
   log_value("Loading kernel with physical offset ", load_offset);
