@@ -6,6 +6,7 @@
 putchar:
   LDR X1, uart_loc
   STR W0, [X1]
+  DSB ST
   RET
 
 .section .text.puts
@@ -17,6 +18,7 @@ puts:
   ADD X0, X0, #1
   CBZ W2, 2f
   STR W2, [X1]
+  DSB ST
   B 1b
 2:
   RET
