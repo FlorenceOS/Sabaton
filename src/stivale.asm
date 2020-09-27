@@ -2,8 +2,9 @@
 
 .section .text.enter_kernel
 enter_kernel: // stivale_info *, u64 stack, u64 entry
+  CBZ X1, 1f
   MOV SP, X1
-  BR X2
+1:BR X2
 
 .global framebuffer_tag
 .global rsdp_tag
