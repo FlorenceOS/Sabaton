@@ -1,6 +1,6 @@
 # Sabaton bootloader
 
-Sabaton is a Stivale2 bootloader targetting different aarch64 enviroments.
+Sabaton is a Stivale2 bootloader targeting different aarch64 enviroments.
 
 ## Differences from stivale2
 Due to the memory layout of aarch64 devices being so far from standardized, a few changes have been made:
