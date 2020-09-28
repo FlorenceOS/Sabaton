@@ -19,16 +19,18 @@ SECTIONS {
   }:none
 
   . = 0xffffffff80000000;
-  .text : ALIGN(64K) {
+  .text : {
     *(.text*)
   }:text
 
-  .data : ALIGN(64K) {
+  . = ALIGN(64K);
+  .data : {
     *(.data*)
     *(.bss*)
   }:data
 
-  .rodata : ALIGN(64K) {
+  . = ALIGN(64K);
+  .rodata : {
     *(.rodata*)
   }:rodata
 
