@@ -9,6 +9,8 @@ PHDRS {
 __kernel_file_loc = 0x4000000;
 __dram_base       = 0x40000000;
 
+putchar = putchar_raw;
+
 SECTIONS {
   . = 0x40100000;
   .blob : {

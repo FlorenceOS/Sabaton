@@ -1,5 +1,5 @@
 .global _start
-.global uart_loc
+.global uart_reg
 .global platform_tags
 .global kernel_load_base
 .global kernel_file_loc
@@ -21,7 +21,7 @@ _start:
   MSR DAIFSET, #0xF
 
   // Enable UART
-  LDR X0, uart_loc
+  LDR X0, uart_reg
 
   // IBRD
   MOV W1, 0x10
@@ -83,7 +83,7 @@ devicetree_tag:
 uart_tag:
   .8byte 0xb813f9b8dbc78797 // u32 MMIO UART
   .8byte 0
-uart_loc:
+uart_reg:
   .8byte 0x9000000
 
 .section .text.platform_add_tags
