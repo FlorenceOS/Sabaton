@@ -62,9 +62,8 @@ _start:
   BR X1
 
 .cont:
-
-  // Set up a stack
-  LDR X18, kernel_load_base
+  // Set up an early stack
+  ADR X18, stack_top
   MOV SP, X18
 
   BL platform_init
