@@ -11,6 +11,10 @@ __dram_base       = 0x40000000;
 
 putchar = putchar_raw;
 
+platform_get_phys_high = devicetree_get_phys_high;
+platform_enable_fb_smp = devicetree_enable_fb_smp;
+platform_make_memmap   = devicetree_make_memmap;
+
 SECTIONS {
   . = 0x40100000;
   .blob : {

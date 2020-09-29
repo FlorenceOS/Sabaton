@@ -2,7 +2,6 @@
 #include "elf.hh"
 #include "pmm.hh"
 #include "paging.hh"
-#include "dtb.hh"
 
 struct stivale_tag {
   u64 ident;
@@ -29,6 +28,9 @@ extern "C" stivale_tag stivale_tags_head;
 
 extern "C" void enter_kernel(stivale_info *, u64 stack, u64 entry) __attribute__((noreturn));
 extern "C" void platform_add_tags();
+extern "C" u64 platform_get_phys_high();
+extern "C" u64 platform_enable_fb_smp(bool enable_fb, bool enable_smp);
+extern "C" u64 platform_make_memmap();
 
 extern "C" stivale_tag firmware_tag;
 
@@ -111,7 +113,7 @@ extern "C" void load_stivale_kernel() {
 
   auto paging_roots = setup_paging();
 
-  auto phys_high = devicetree_get_phys_high();
+  auto phys_high = platform_get_phys_high();
 
   page_section(0, 0, phys_high, {.write = 1, .execute = 1}, &paging_roots);
 
@@ -134,8 +136,10 @@ extern "C" void load_stivale_kernel() {
 
   platform_add_tags();
 
+  platform_enable_fb_smp(fb, smp);
+
   // This call seals the pmm, no pmm allocations after this are allowed.
-  devicetree_parse(db, smp);
+  platform_make_memmap();
 
   append_tag(&firmware_tag);
 

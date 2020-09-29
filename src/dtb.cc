@@ -1,4 +1,5 @@
-#include "dtb.hh"
+#include "common.hh"
+
 #include "stivale.hh"
 #include "align.hh"
 #include "pmm.hh"
@@ -158,9 +159,10 @@ namespace {
               // Entries in memmap
               *output++ = 2;
 
-              // Bootloader reclaimable
               u64 usable_base = seal_phys();
               u64 reclaimable_size = base - usable_base;
+              
+              // Bootloader reclaimable
               *output++ = base;
               *output++ = reclaimable_size;
               *output++ = 0x1000;
@@ -222,14 +224,17 @@ extern "C" stivale_tag framebuffer_tag;
 extern "C" stivale_tag rsdp_tag;
 extern "C" stivale_tag epoch_tag;
 
-u64 devicetree_get_phys_high() {
+extern "C" u64 devicetree_get_phys_high() {
   u64 phys_high;
   parse_dt(&phys_high, false, false, 0);
   log_value("Physical high is ", phys_high);
   return phys_high;
 }
 
-void devicetree_parse(bool init_fb, bool boot_aps) {
+extern "C" void devicetree_enable_fb_smp(bool init_fb, bool boot_aps) {
   parse_dt(nullptr, init_fb, boot_aps, false);
+}
+
+extern "C" void devicetree_make_memmap() {
   parse_dt(nullptr, false, false, true);
 }
