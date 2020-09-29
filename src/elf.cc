@@ -1,7 +1,7 @@
 #include "common.hh"
 #include "paging.hh"
+#include "pmm.hh"
 
-extern "C" u64 kernel_load_base;
 extern "C" u8 *kernel_file_loc;
 
 using addr = u64;
@@ -88,18 +88,20 @@ namespace {
     return sz;
   }
 
-  u64 load_elf_section(u64 num, u8 *buf, u64 bufsize, u64 load_offset) {
+  u64 load_elf_section(u64 num, u8 *buf, u64 bufsize) {
     auto sh = get_sh(num);
     auto sz = load_elf_section(sh, buf, bufsize);
     // TODO: Relocations
     return sz;
   }
 
-  void load_elf_phdr(Program_Header const *ph, u64 load_offset) {
-    __builtin_memcpy((void *)(load_offset + ph->vaddr), kernel_file_loc + ph->offset, ph->filesz);
-    __builtin_memset((void *)(load_offset + ph->vaddr + ph->filesz), 0, ph->memsz - ph->filesz);
+  void load_elf_phdr(Program_Header const *ph) {
+    auto phys = calloc_phys(ph->memsz, true);
 
-    page_section(ph->vaddr, load_offset + ph->vaddr, ph->memsz, {.write = (bool)(ph->flags&2), .execute = (bool)(ph->flags&1)});
+    __builtin_memcpy((void *)(phys), kernel_file_loc + ph->offset, ph->filesz);
+    __builtin_memset((void *)(phys + ph->filesz), 0, ph->memsz - ph->filesz);
+
+    page_section(ph->vaddr, phys, ph->memsz, {.write = (bool)(ph->flags&2), .execute = (bool)(ph->flags&1)});
     // TODO: Relocations
   }
 }
@@ -118,7 +120,7 @@ u64 load_elf_section(char const *section_name, u8 *buf, u64 bufsize, u64 load_of
   for(half sec = 0; sec < header->shnum; ++sec) {
     auto sh = get_sh(sec);
     if(__builtin_strcmp((char const *)&string_table[sh->name], section_name) == 0) {
-      return load_elf_section(sec, buf, bufsize, load_offset);
+      return load_elf_section(sec, buf, bufsize);
     }
   }
 
@@ -129,8 +131,6 @@ u64 load_elf_section(char const *section_name, u8 *buf, u64 bufsize, u64 load_of
 }
 
 void load_elf() {
-  log_value("Kernel will be loaded at physical address ", kernel_load_base);
-
   auto header = (Header*)kernel_file_loc;
 
   u64 addr_low = ~0ULL;
@@ -147,16 +147,12 @@ void load_elf() {
 
   log_value("Lowest kernel address was ", addr_low);
 
-  u64 const load_offset = kernel_load_base - addr_low;
-
-  log_value("Loading kernel with physical offset ", load_offset);
-
   for(half phdr = 0; phdr < header->phnum; ++ phdr) {
     auto ph = get_ph(phdr);
 
     if(ph->type != 1)
       continue;
 
-    load_elf_phdr(ph, load_offset);
+    load_elf_phdr(ph);
   }
 }

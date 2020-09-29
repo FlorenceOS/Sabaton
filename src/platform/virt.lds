@@ -30,8 +30,6 @@ SECTIONS {
 
   . = ALIGN(4K);
   __pmm_base = .;
-  . += 64M;
-  __kernel_load_base = .;
 
   .eh_frame : {
     *(.eh_frame*)

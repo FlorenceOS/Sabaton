@@ -1,7 +1,6 @@
 .global _start
 .global uart_reg
 .global platform_tags
-.global kernel_load_base
 .global kernel_file_loc
 .global page_size
 .global phys_head
@@ -111,7 +110,5 @@ dram_base:
   .8byte __dram_base
 phys_head:
   .8byte __pmm_base
-kernel_load_base:
-  .8byte __kernel_load_base
 page_size:
   .8byte 0x1000
