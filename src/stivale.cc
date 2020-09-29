@@ -36,28 +36,30 @@ namespace {
   stivale_tag **tags_head;
   stivale_tag *last_tag = nullptr;
 
-  bool enable_fb = false;
-  bool enable_smp = false;
-
-  void parse_kernel_tags(stivale2hdr const &hdr) {
+  auto parse_kernel_tags(stivale2hdr const &hdr) {
+    struct {
+      bool fb = false;
+      bool smp = false;
+    } r;
     for(auto tag = hdr.tags; tag; tag = tag->next) {
       switch(tag->ident) {
       case 0x3ECC1BC43D0F7971: { // Framebuffer
         if(((u16*)tag)[8])  panic("Nonzero width");
         if(((u16*)tag)[9])  panic("Nonzero height");
         if(((u16*)tag)[10]) panic("Nonzero bpp");
-        enable_fb = true;
+        r.fb = true;
         puts("Kernel requested framebuffer\n");
         break;
       }
       case 0x1AB015085F3273DF: {
-        enable_smp = true;
+        r.smp = true;
         puts("Kernel requested SMP\n");
         break;
       }
       default: log_value("Unknown tag identifier: 0x", tag->ident); break;
       }
     }
+    return r;
   }
 }
 
@@ -128,12 +130,12 @@ extern "C" void load_stivale_kernel() {
 
   load_elf();
 
-  parse_kernel_tags(hdr);
+  auto [fb, smp] = parse_kernel_tags(hdr);
 
   platform_add_tags();
 
   // This call seals the pmm, no pmm allocations after this are allowed.
-  devicetree_parse(enable_fb, enable_smp);
+  devicetree_parse(db, smp);
 
   append_tag(&firmware_tag);
 
