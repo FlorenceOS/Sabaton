@@ -7,7 +7,7 @@ assemble ?= clang -target aarch64-none-eabi
 assemble := $(assemble) -c
 
 cxx ?= clang -target aarch64-none-eabi
-cxx := $(cxx) -c -ffunction-sections -fdata-sections -mgeneral-regs-only -mstrict-align -Oz -Wall
+cxx := $(cxx) -c -ffunction-sections -fdata-sections -mgeneral-regs-only -mstrict-align -Oz -Wall -std=c++17
 
 CommonSources := $(shell find src -maxdepth 1 -name '*.asm' -o -name '*.cc')
 CommonHeaders := $(shell find src -maxdepth 1 -name '*.hh')
