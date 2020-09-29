@@ -14,6 +14,7 @@ CommonHeaders := $(shell find src -maxdepth 1 -name '*.hh')
 CommonObjects := $(patsubst src/%, build/%.o, $(CommonSources))
 
 PlatformSources := $(shell find src/platform -maxdepth 1 -name '*.asm')
+LinkerCommon    := $(shell find src/platform -maxdepth 1 -name '*_common.lds')
 
 all: | $(patsubst src/platform/%.asm, out/%.bin, $(PlatformSources))
 
@@ -25,9 +26,9 @@ clean:
 
 .SECONDARY:;
 
-build/%.elf: src/platform/%.lds build/%.asm.o $(CommonObjects)
+build/%.elf: src/platform/%.lds build/%.asm.o $(LinkerCommon) $(CommonObjects)
 	@mkdir -p $(@D)
-	$(link) -T $^ -o $@
+	$(link) -T $< $(filter %.o,$^) -o $@
 
 build/%.bin: build/%.elf
 	@mkdir -p $(@D)
