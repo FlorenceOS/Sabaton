@@ -160,7 +160,7 @@ namespace {
               *output++ = 2;
 
               u64 usable_base = seal_phys();
-              u64 reclaimable_size = base - usable_base;
+              u64 reclaimable_size = usable_base - base;
               
               // Bootloader reclaimable
               *output++ = base;
