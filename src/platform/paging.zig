@@ -57,12 +57,6 @@ fn make_pte(vaddr: u64, base_bits: u6, levels: u64, tbl_in: table_ptr) *pte {
   }
 
   const ind = get_index(vaddr, base_bits, 0);
-  // I decided that overlapping mappings are fine and we should just
-  // not overwrite anything
-  // if(tbl[ind] != 0) {
-  //   sabaton.log("Nonzero page table entry!\n", .{});
-  //   unreachable;
-  // }
   return &tbl[ind];
 }
 
