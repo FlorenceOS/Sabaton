@@ -14,15 +14,11 @@ SECTIONS {
   .blob : {
     __blob_base = .;
     *(.text.entry)
-    . = ALIGN(16);
     *(.text*)
-    . = ALIGN(16);
     *(.data*)
-    . = ALIGN(16);
     *(.rodata*)
-    . = ALIGN(16);
     *(.bss*)
-    . = ALIGN(0x40);
+    . = ALIGN(16);
     __blob_end = .;
   }
 

@@ -107,7 +107,7 @@ fn verify_purpose(p: purpose) void {
   }
 }
 
-fn alloc_impl(num_bytes: u64, aligned: bool, p: purpose) []u8 {
+fn alloc_impl(num_bytes: u64, comptime aligned: bool, p: purpose) []u8 {
   var current_base = sabaton.near("pmm_head").read(u64);
 
   verify_purpose(p);
@@ -125,12 +125,12 @@ fn alloc_impl(num_bytes: u64, aligned: bool, p: purpose) []u8 {
   return ptr[0..num_bytes];
 }
 
-pub fn alloc(num_bytes: u64, p: purpose) []u8 {
-  return alloc_impl(num_bytes, false, p);
-}
+//pub fn alloc(num_bytes: u64, p: purpose) []u8 {
+//  return @call(.{.modifier = .always_inline}, alloc_impl, .{num_bytes, false, p});
+//}
 
 pub fn alloc_aligned(num_bytes: u64, p: purpose) []align(0x1000) u8 {
-  return @alignCast(0x1000, alloc_impl(num_bytes, true, p));
+  return @alignCast(0x1000, @call(.{.modifier = .never_inline}, alloc_impl, .{num_bytes, true, p}));
 }
 
 pub fn write_dram_size(dram_len: u64) void {

@@ -7,7 +7,7 @@ const std = @import("std");
 
 export fn _main() noreturn {
   sabaton.paging.detect_page_size();
-  sabaton.main();
+  @call(.{.modifier = .always_inline}, sabaton.main, .{});
 }
 
 pub fn get_kernel() [*]u8 {
@@ -40,8 +40,8 @@ fn get_dram_size() u64 {
   const base = std.mem.readIntBig(u64, memory_blob[0..8]);
   const size = std.mem.readIntBig(u64, memory_blob[8..16]);
 
-  if(base != sabaton.near("dram_base").read(u64)) {
-    sabaton.log("dtb has wrong memory base: 0x{X}", .{base});
+  if(sabaton.safety and base != sabaton.near("dram_base").read(u64)) {
+    sabaton.log_hex("dtb has wrong memory base: ", base);
     unreachable;
   }
 
