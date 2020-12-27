@@ -83,7 +83,9 @@ pub fn find(comptime node_prefix: []const u8, comptime prop_name: []const u8) ![
       0x00000004 => { }, // FDT_NOP
       0x00000009 => break, // FDT_END
       else => {
-        sabaton.log("Unknown DTB opcode 0x{X}\n", .{opcode});
+        if(sabaton.safety) {
+          sabaton.log("Unknown DTB opcode 0x{X}\n", .{opcode});
+        }
         unreachable;
       }
     }

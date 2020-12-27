@@ -54,7 +54,7 @@ const pmm_state = enum {
 var current_state: pmm_state = .Prekernel;
 
 pub fn verify_transition(s: pmm_state) void {
-  if(current_state == .Sealed or (@enumToInt(current_state) + 1 != @enumToInt(s))) {
+  if(sabaton.safety and (current_state == .Sealed or (@enumToInt(current_state) + 1 != @enumToInt(s)))) {
     sabaton.log("Unexpected pmm sate: .{} while in state .{}\n", .{@tagName(s), @tagName(current_state)});
     unreachable;
   }
@@ -89,7 +89,7 @@ const purpose = enum {
 };
 
 fn verify_purpose(p: purpose) void {
-  if(switch(current_state) {
+  if(sabaton.safety and switch(current_state) {
     // When we're doing page tables, only allow that
     .PageTables => p != .PageTable,
 
@@ -134,7 +134,7 @@ pub fn alloc_aligned(num_bytes: u64, p: purpose) []align(0x1000) u8 {
 }
 
 pub fn write_dram_size(dram_len: u64) void {
-  if(current_state != .Sealed) {
+  if(sabaton.safety and current_state != .Sealed) {
     sabaton.log("Unexpected pmm sate: .{} while writing dram size\n", .{@tagName(current_state)});
     unreachable;
   }
