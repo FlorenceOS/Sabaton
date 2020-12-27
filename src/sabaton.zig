@@ -11,6 +11,7 @@ pub const vital = util.vital;
 pub const io = platform.io;
 
 pub const debug = @import("builtin").mode == .Debug;
+pub const safety = std.debug.runtime_safety;
 
 const std = @import("std");
 

@@ -53,7 +53,7 @@ fn make_pte(vaddr: u64, base_bits: u6, levels: u64, tbl_in: table_ptr) *pte {
   var tbl = tbl_in;
   while(level > 0): (level -= 1) {
     const ind = get_index(vaddr, base_bits, level);
-    tbl = make_table_at(&tbl[ind]);
+    tbl = @call(.{.modifier = .never_inline}, make_table_at, .{&tbl[ind]});
   }
 
   const ind = get_index(vaddr, base_bits, 0);
