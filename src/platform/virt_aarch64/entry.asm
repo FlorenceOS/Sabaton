@@ -1,18 +1,4 @@
 .global _start
-.global uart_reg
-.global platform_tags
-.global kernel_file_loc
-.global page_size
-.global phys_head
-.global dtb_loc
-.global dram_base
-.global platform_add_tags
-
-.extern puts
-.extern uart_location
-.extern platform_init
-.extern __blob_base
-.extern __blob_end
 
 .section .text.entry
 _start:
@@ -62,12 +48,14 @@ _start:
 
 .cont:
   // Set up an early stack
-  ADR X18, stack_top
+  ADR X18, _start
   MOV SP, X18
 
-  BL platform_init
-  B load_stivale_kernel
+  B _main
 
+.global devicetree_tag
+.global uart_tag
+.global uart_reg
 .section .data.stivale_tags
 .balign 16
 platform_tags:
@@ -84,19 +72,7 @@ uart_tag:
 uart_reg:
   .8byte 0x9000000
 
-.section .text.platform_add_tags
-platform_add_tags:
-  STP X29, X30, [SP, #-0x10]!
-  MOV X29, SP
-
-  ADR X0, devicetree_tag
-  BL append_tag
-
-  LDP X29, X30, [SP], 0x10
-
-  ADR X0, uart_tag
-  B append_tag
-
+.global kernel_file_loc
 .section .rodata
 .balign 8
 kernel_file_loc:
@@ -105,10 +81,3 @@ relocation_base:
   .8byte __blob_base
 relocation_end:
   .8byte __blob_end
-dtb_loc:
-dram_base:
-  .8byte __dram_base
-phys_head:
-  .8byte __pmm_base
-page_size:
-  .8byte 0x1000
