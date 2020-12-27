@@ -143,9 +143,8 @@ pub const Elf = struct {
       mempool.len -= used_bytes;
     }
 
-    if(mempool.len != 0) {
-      sabaton.log("We overallocated memory for the kernel for some reason??\n", .{});
-      unreachable;
+    if(sabaton.debug and mempool.len != 0) {
+      sabaton.puts("Kernel overallocated??\n");
     }
   }
 

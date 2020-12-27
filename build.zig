@@ -73,7 +73,7 @@ fn build_elf(b: *Builder, arch: builtin.Arch, target_name: []const u8) !*std.bui
 
   //elf.addBuildOption([] const u8, "source_blob_path", std.mem.concat(b.allocator, u8, &[_][]const u8{ "../../", source_blob_path } ) catch unreachable);
   target(elf, arch);
-  elf.setBuildMode(.ReleaseSafe);
+  elf.setBuildMode(.ReleaseSmall);
 
   elf.setMainPkgPath("src/");
   elf.setOutputDir(b.cache_root);

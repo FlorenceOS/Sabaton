@@ -28,15 +28,9 @@ _start:
   // I also know how to write bzero like this :)
   LDP X3, X4, [X0, #0x00]
   STP X3, X4, [X1, #0x00]
-  LDP X3, X4, [X0, #0x10]
-  STP X3, X4, [X1, #0x10]
-  LDP X3, X4, [X0, #0x20]
-  STP X3, X4, [X1, #0x20]
-  LDP X3, X4, [X0, #0x30]
-  STP X3, X4, [X1, #0x30]
 
-  ADD X0, X0, #0x40
-  ADD X1, X1, #0x40
+  ADD X0, X0, #0x10
+  ADD X1, X1, #0x10
 
   B .relocate_loop
 .relocate_done:

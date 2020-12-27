@@ -5,7 +5,10 @@ pub const dtb = @import("lib/dtb.zig");
 pub const pmm = @import("lib/pmm.zig");
 pub const paging = @import("platform/paging.zig");
 
-pub const log = io_impl.log;
+pub const puts = io_impl.puts;
+pub const log_hex = io_impl.log_hex;
+pub const print_hex = io_impl.print_hex;
+pub const print_str = io_impl.print_str;
 pub const near = util.near;
 pub const vital = util.vital;
 pub const io = platform.io;
@@ -16,18 +19,21 @@ pub const safety = std.debug.runtime_safety;
 const std = @import("std");
 
 pub fn panic(reason: []const u8, stacktrace: ?*std.builtin.StackTrace) noreturn {
-  log("PANIC!\n", .{});
+  @call(.{.modifier = .never_inline}, puts, .{"PANIC!"});
   if(reason.len != 0) {
-    log("Reason: {}!\n", .{reason});
+    @call(.{.modifier = .never_inline}, puts, .{" Reason:"});
+    @call(.{.modifier = .never_inline}, print_str, .{reason});
   }
 
-  if(stacktrace) |t| {
-    log("Trace:\n", .{});
-    for(t.instruction_addresses[t.index..]) |addr| {
-      log("  0x{X}\n", .{addr});
+  if(sabaton.debug) {
+    if(stacktrace) |t| {
+      log("\nTrace:\n", .{});
+      for(t.instruction_addresses) |addr| {
+        log("  0x{X}\n", .{addr});
+      }
+    } else {
+      log("\nNo trace.\n", .{});
     }
-  } else {
-    log("No trace.\n", .{});
   }
 
   asm volatile(
@@ -75,26 +81,14 @@ pub fn add_tag(tag: *Stivale2tag) void {
   stivale2_info.tags = tag;
 }
 
-extern fn enter_kernel(info: *const InfoStruct, entry: u64, stack: u64) noreturn;
-
-comptime {
-  asm(
-    \\.section .text.enter_kernel
-    \\enter_kernel:
-    \\  CBZ X2, 1f
-    \\  MOV SP, X2
-    \\1:BR X1
-  );
-}
-
 pub fn main() noreturn {
-  const dram = platform.get_dram();
+  const dram = @call(.{.modifier = .always_inline}, platform.get_dram, .{});
 
   var kernel_elf = Elf {
-    .data = platform.get_kernel(),
+    .data = @call(.{.modifier = .always_inline}, platform.get_kernel, .{}),
   };
 
-  kernel_elf.init();
+  @call(.{.modifier = .always_inline}, kernel_elf.init, .{});
 
   var kernel_header: Stivale2hdr = undefined;
   _ = vital(
@@ -102,7 +96,7 @@ pub fn main() noreturn {
     "loading .stivale2hdr", true,
   );
 
-  platform.add_platform_tags(&kernel_header);
+  @call(.{.modifier = .always_inline}, platform.add_platform_tags, .{&kernel_header});
 
   // Allocate space for backing pages of the kernel
   pmm.switch_state(.KernelPages);
@@ -111,15 +105,15 @@ pub fn main() noreturn {
   // TODO: Allocate and put modules here
 
   pmm.switch_state(.PageTables);
-  var root = paging.init_paging();
-  platform.map_platform(&root);
+  var root = @call(.{.modifier = .always_inline}, paging.init_paging, .{});
+  @call(.{.modifier = .always_inline}, platform.map_platform, .{&root});
   {
     const dram_base = @ptrToInt(dram.ptr);
     sabaton.paging.map(dram_base, dram_base, dram.len, .rw, .memory, &root, .CanOverlap);
   }
-  paging.apply_paging(&root);
+  @call(.{.modifier = .always_inline}, paging.apply_paging, .{&root});
   // Check the flags in the stivale2 header
-  kernel_elf.load(kernel_memory_pool);
+  @call(.{.modifier = .always_inline}, kernel_elf.load, .{kernel_memory_pool});
 
   if(sabaton.debug)
     sabaton.log("Sealing PMM\n", .{});
@@ -133,11 +127,17 @@ pub fn main() noreturn {
 
   add_tag(&near("memmap_tag").addr(Stivale2tag)[0]);
 
-  var kernel_entry: u64 = kernel_elf.entry();
-  var kernel_stack: u64 = kernel_header.stack;
-
   if(sabaton.debug)
     sabaton.log("Entering kernel...\n", .{});
 
-  enter_kernel(&stivale2_info, kernel_entry, kernel_stack);
+  asm volatile(
+    \\  CBZ %[stack], 1f
+    \\  MOV SP, %[stack]
+    \\1:BR %[entry]
+    :
+    : [entry] "r" (kernel_elf.entry())
+    , [stack] "r" (kernel_header.stack)
+    , [info] "{X0}" (&stivale2_info)
+  );
+  unreachable;
 }
