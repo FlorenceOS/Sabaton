@@ -176,6 +176,7 @@ pub fn apply_paging(r: *Root) void {
 
   var paging_granule_br0: u64 = undefined;
   var paging_granule_br1: u64 = undefined;
+  var region_size_offset: u64 = undefined
 
   const page_size = sabaton.near("page_size").read(u64);
 
@@ -183,21 +184,24 @@ pub fn apply_paging(r: *Root) void {
     0x1000 => {
       paging_granule_br0 = 0b00;
       paging_granule_br1 = 0b10;
+      region_size_offset = 16;
     },
     0x4000 => {
       paging_granule_br0 = 0b10;
       paging_granule_br1 = 0b01;
+      region_size_offset = 8;
     },
     0x10000 => {
       paging_granule_br0 = 0b01;
       paging_granule_br1 = 0b11;
+      region_size_offset = 0;
     },
     else => unreachable,
   }
 
   const tcr: u64 = 0
-    | (16 << 0)  // T0SZ=16
-    | (16 << 16) // T1SZ=16
+    | (region_size_offset << 0)  // T0SZ
+    | (region_size_offset << 16) // T1SZ
     | (1 << 8)   // TTBR0 Inner WB RW-Allocate
     | (1 << 10)  // TTBR0 Outer WB RW-Allocate
     | (1 << 24)  // TTBR1 Inner WB RW-Allocate
