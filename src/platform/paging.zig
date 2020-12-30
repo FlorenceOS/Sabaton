@@ -186,7 +186,7 @@ pub fn apply_paging(r: *Root) void {
 
   var paging_granule_br0: u64 = undefined;
   var paging_granule_br1: u64 = undefined;
-  var region_size_offset: u64 = undefined
+  var region_size_offset: u64 = undefined;
 
   const page_size = sabaton.near("page_size").read(u64);
 
