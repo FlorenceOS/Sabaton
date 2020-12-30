@@ -51,7 +51,7 @@ _start:
 .global uart_tag
 .global uart_reg
 .section .data.stivale_tags
-.balign 16
+.balign 8
 platform_tags:
 devicetree_tag:
   .8byte 0xabb29bd49a2833fa // DeviceTree
@@ -59,7 +59,7 @@ devicetree_tag:
   .8byte __dram_base
   .8byte 0x100000
 
-.balign 16
+.balign 8
 uart_tag:
   .8byte 0xb813f9b8dbc78797 // u32 MMIO UART
   .8byte 0

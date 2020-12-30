@@ -15,13 +15,12 @@ pub fn BigEndian(comptime T: type) type {
   };
 }
 
-pub fn vital(val: anytype, context: [*:0]const u8, comptime reachable: bool) @TypeOf(val catch unreachable) {
+pub fn vital(val: anytype, comptime context: []const u8, comptime reachable: bool) @TypeOf(val catch unreachable) {
   return val catch |err| {
     if(reachable) {
       @call(.{.modifier = .never_inline}, sabaton.puts, .{"Fatal error: "});
       @call(.{.modifier = .never_inline}, sabaton.print_str, .{@errorName(err)});
-      @call(.{.modifier = .never_inline}, sabaton.puts, .{" while "});
-      @call(.{.modifier = .never_inline}, sabaton.puts, .{context});
+      @call(.{.modifier = .never_inline}, sabaton.puts, .{" while " ++ context});
       @panic("");
     }
     unreachable;

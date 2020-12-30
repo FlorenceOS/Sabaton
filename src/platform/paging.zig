@@ -97,7 +97,7 @@ pub fn detect_page_size() void {
   else if(((aa64mmfr0 >> 24) & 0x0F) == 0b0000) {
     psz = 0x10000;
   }
-  else {
+  else if(sabaton.safety) {
     @panic("Unknown page size!");
   }
   sabaton.near("page_size").write(psz);
@@ -112,8 +112,15 @@ pub fn init_paging() Root {
 }
 
 fn choose_root(r: *const Root, vaddr: u64) table_ptr {
-  return
-    if(sabaton.util.upper_half(vaddr)) r.ttbr1 else r.ttbr0;
+  if(sabaton.util.upper_half(vaddr)) {
+    if(sabaton.debug)
+      sabaton.log("vaddr 0x{X} is upper half\n", .{vaddr});
+    return r.ttbr1;
+  } else {
+    if(sabaton.debug)
+      sabaton.log("vaddr 0x{X} is lower half\n", .{vaddr});
+    return r.ttbr0;
+  }
 }
 
 pub fn current_root() Root {
@@ -143,6 +150,9 @@ pub fn map(vaddr_c: u64, paddr_c: u64, size_c: u64, perm: Perms, mt: MemoryType,
   const levels = 4;
   const base_bits = @intCast(u6, @ctz(u64, page_size));
   const bits = extra_bits(perm, mt);
+
+  if(sabaton.debug)
+    sabaton.log("Extra bits for mode {}, {} are 0x{X}\n", .{perm, mt, bits});
 
   while(size != 0) {
     const ent = make_pte(vaddr, base_bits, levels, root);

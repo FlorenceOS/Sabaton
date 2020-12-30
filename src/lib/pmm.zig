@@ -55,7 +55,11 @@ var current_state: pmm_state = .Prekernel;
 
 pub fn verify_transition(s: pmm_state) void {
   if(sabaton.safety and (current_state == .Sealed or (@enumToInt(current_state) + 1 != @enumToInt(s)))) {
-    sabaton.log("Unexpected pmm sate: .{} while in state .{}\n", .{@tagName(s), @tagName(current_state)});
+    sabaton.puts("Unexpected pmm sate: ");
+    sabaton.print_str(@tagName(s));
+    sabaton.puts("while in state: ");
+    sabaton.print_str(@tagName(current_state));
+    sabaton.putchar('\n');
     unreachable;
   }
 }
@@ -102,7 +106,11 @@ fn verify_purpose(p: purpose) void {
     // When we're sealed we don't want to allocate anything anymore
     .Sealed => true,
   }) {
-    sabaton.log("Allocation purpose .{} not valid in state .{}!", .{@tagName(p), @tagName(current_state)});
+    sabaton.puts("Allocation purpose ");
+    sabaton.print_str(@tagName(p));
+    sabaton.puts(" not valid in state ");
+    sabaton.print_str(@tagName(current_state));
+    sabaton.putchar('\n');
     unreachable;
   }
 }
@@ -135,7 +143,9 @@ pub fn alloc_aligned(num_bytes: u64, p: purpose) []align(0x1000) u8 {
 
 pub fn write_dram_size(dram_len: u64) void {
   if(sabaton.safety and current_state != .Sealed) {
-    sabaton.log("Unexpected pmm sate: .{} while writing dram size\n", .{@tagName(current_state)});
+    sabaton.puts("Unexpected pmm sate: ");
+    sabaton.print_str(@tagName(current_state));
+    sabaton.puts("while writing dram size\n");
     unreachable;
   }
 

@@ -4,7 +4,7 @@ const sabaton = @import("root").sabaton;
 
 const fmt = @import("std").fmt;
 
-const putchar = sabaton.platform.io.putchar;
+pub const putchar = sabaton.platform.io.putchar;
 
 const Printer = struct {
   pub fn writeAll(self: *const Printer, str: []const u8) !void {
@@ -25,11 +25,15 @@ const Printer = struct {
 };
 
 usingnamespace if(sabaton.debug) struct {
-  pub fn log(comptime format: []const u8, args: anytype) void {
-    var printer = Printer{};
-    fmt.format(printer, format, args) catch unreachable;
-  }
-  } else struct { };
+    pub fn log(comptime format: []const u8, args: anytype) void {
+      var printer = Printer{};
+      fmt.format(printer, format, args) catch unreachable;
+    }
+  } else struct {
+    pub fn log(comptime format: []const u8, args: anytype) void {
+      @compileError("Log called!");
+    }
+  };
 
 pub fn print_chars(ptr: [*]const u8, num: usize) void {
   var i: usize = 0;
@@ -41,17 +45,18 @@ pub fn print_chars(ptr: [*]const u8, num: usize) void {
 fn print_hex_impl(num: u64, nibbles: isize) void {
   var i: isize = nibbles - 1;
   while(i >= 0) : (i -= 1){
-    putchar("0123456789ABCDEF"[(num >> (i * 4))&0xF]);
+    putchar("0123456789ABCDEF"[(num >> @intCast(u6, i * 4))&0xF]);
   }
 }
 
 pub fn print_hex(num: anytype) void {
-  @call(.{.modifier = .never_inline}, (@bitSizeOf(@TypeOf(num)) + 3)/4);
+  @call(.{.modifier = .never_inline}, print_hex_impl, .{num, (@bitSizeOf(@TypeOf(num)) + 3)/4});
 }
 
 pub fn log_hex(str: [*:0]const u8, val: anytype) void {
-  print_str(str);
+  puts(str);
   print_hex(val);
+  putchar('\n');
 }
 
 pub fn puts(str_c: [*:0]const u8) void {
