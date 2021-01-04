@@ -5,8 +5,14 @@ pub const panic = sabaton.panic;
 
 const std = @import("std");
 
+var page_size: u64 = 0x1000;
+
+pub fn get_page_size() u64 {
+  return page_size;
+}
+
 export fn _main() noreturn {
-  sabaton.paging.detect_page_size();
+  page_size = sabaton.paging.detect_page_size();
   @call(.{.modifier = .always_inline}, sabaton.main, .{});
 }
 

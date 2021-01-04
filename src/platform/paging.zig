@@ -1,10 +1,3 @@
-comptime {
-  asm(
-    \\page_size:
-    \\  .8byte 0x1000
-  );
-}
-
 const sabaton = @import("root").sabaton;
 
 const pte = u64;
@@ -35,7 +28,7 @@ fn make_table_at(e: *pte) table_ptr {
   if(e.* & 1 != 0) {
     return @intToPtr(table_ptr, e.* & 0x0000FFFFFFFFF000);
   } else {
-    const page_size = sabaton.near("page_size").read(u64);
+    const page_size = sabaton.platform.get_page_size();
     const ret = sabaton.pmm.alloc_aligned(page_size, .PageTable);
     e.* = @ptrToInt(ret.ptr);
     e.* |= 1 << 63 | 0x3;
@@ -61,6 +54,11 @@ fn make_pte(vaddr: u64, base_bits: u6, levels: u64, tbl_in: table_ptr) *pte {
 }
 
 fn extra_bits(perm: Perms, mt: MemoryType) u64 {
+  // var bits: u64 = 0x623;
+  // bits |= switch(mt) {
+  //   .memory => @as(u64, 0 << 2),
+  //   .mmio   => @as(u64, 1 << 2),
+  // };
   var bits: u64 = 0x3 | (2 << 2) | (1 << 5) | (1 << 10);
   const bit_nx = 1 << 54;
   const bit_nw = 1 << 7;
@@ -69,7 +67,7 @@ fn extra_bits(perm: Perms, mt: MemoryType) u64 {
   if(@enumToInt(perm) & @enumToInt(Perms.x) == 0) bits |= bit_nx;
   bits |= switch(mt) {
     .memory => @as(u64, 0 << 2 | 2 << 8 | 1 << 11),
-    .mmio   => @as(u64, 1 << 2 | 0 << 8),
+    .mmio   => @as(u64, 1 << 2 | 2 << 8),
   };
   return bits;
 }
@@ -78,7 +76,7 @@ fn make_mapping_at(ent: *pte, paddr: u64, bits: u64) void {
   ent.* = paddr | bits;
 }
 
-pub fn detect_page_size() void {
+pub fn detect_page_size() u64 {
   var aa64mmfr0: u64 = undefined;
 
   asm volatile(
@@ -99,12 +97,14 @@ pub fn detect_page_size() void {
   }
   else if(sabaton.safety) {
     @panic("Unknown page size!");
+  } else {
+    unreachable;
   }
-  sabaton.near("page_size").write(psz);
+  return psz;
 }
 
 pub fn init_paging() Root {
-  const page_size = sabaton.near("page_size").read(u64);
+  const page_size = sabaton.platform.get_page_size();
   return .{
     .ttbr0 = @ptrCast(table_ptr, sabaton.pmm.alloc_aligned(page_size, .PageTable)),
     .ttbr1 = @ptrCast(table_ptr, sabaton.pmm.alloc_aligned(page_size, .PageTable)),
@@ -131,7 +131,7 @@ pub fn current_root() Root {
 }
 
 pub fn map(vaddr_c: u64, paddr_c: u64, size_c: u64, perm: Perms, mt: MemoryType, in_root: ?*Root, mode: enum{CanOverlap, CannotOverlap}) void {
-  const page_size = sabaton.near("page_size").read(u64);
+  const page_size = sabaton.platform.get_page_size();
   var vaddr = vaddr_c;
   var paddr = paddr_c;
   var size = size_c;
@@ -188,7 +188,7 @@ pub fn apply_paging(r: *Root) void {
   var paging_granule_br1: u64 = undefined;
   var region_size_offset: u64 = undefined;
 
-  const page_size = sabaton.near("page_size").read(u64);
+  const page_size = sabaton.platform.get_page_size();
 
   switch(page_size) {
     0x1000 => {
@@ -221,6 +221,8 @@ pub fn apply_paging(r: *Root) void {
     | (aa64mmfr0 << 32) // intermediate address size
     | (paging_granule_br0 << 14) // TTBR0 granule
     | (paging_granule_br1 << 30) // TTBR1 granule
+    | (1 << 56) // Fault on TTBR1 access from EL0
+    | (0 << 55) // Don't fault on TTBR0 access from EL0
   ;
 
   const mair: u64 = 0

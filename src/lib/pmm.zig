@@ -5,7 +5,9 @@ comptime {
     \\
     \\.global dram_base
     \\.global memmap_tag
+    \\.global pmm_head
     \\
+    \\ .section .data
     \\ memmap_tag:
     \\   .8byte 0x2187F79E8612DE07
     \\   .8byte 0 // Next ptr
@@ -68,7 +70,7 @@ pub fn switch_state(new_state: pmm_state) void {
   verify_transition(new_state);
 
   // Transition out of current state and apply changes
-  const page_size = sabaton.near("page_size").read(u64);
+  const page_size = sabaton.platform.get_page_size();
 
   // Page align the addresses and sizes
   var current_base = sabaton.near("pmm_head").read(u64);
@@ -121,7 +123,7 @@ fn alloc_impl(num_bytes: u64, comptime aligned: bool, p: purpose) []u8 {
   verify_purpose(p);
 
   if(aligned) {
-    const page_size = sabaton.near("page_size").read(u64);
+    const page_size = sabaton.platform.get_page_size();
 
     current_base += page_size - 1;
     current_base &= ~(page_size - 1);

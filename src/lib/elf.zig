@@ -111,7 +111,7 @@ pub const Elf = struct {
   }
 
   pub fn load(self: *@This(), mempool_c: []align(4096) u8) void {
-    const page_size = sabaton.near("page_size").read(u64);
+    const page_size = sabaton.platform.get_page_size();
     var mempool = mempool_c;
 
     var phnum: usize = 0;
@@ -149,7 +149,7 @@ pub const Elf = struct {
   }
 
   pub fn paged_bytes(self: *@This()) usize {
-    const page_size = sabaton.near("page_size").read(u64);
+    const page_size = sabaton.platform.get_page_size();
     var result: usize = 0;
 
     var phnum: usize = 0;
