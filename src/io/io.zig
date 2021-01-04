@@ -1,4 +1,5 @@
 pub const uart_mmio_32 = @import("uart_mmio_32.zig");
+pub const status_uart_mmio_32 = @import("status_uart_mmio_32.zig");
 
 const sabaton = @import("root").sabaton;
 
