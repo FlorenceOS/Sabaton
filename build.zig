@@ -87,7 +87,7 @@ fn build_elf(b: *Builder, arch: builtin.Arch, target_name: []const u8) !*std.bui
   return elf;
 }
 
-fn blob(b: *Builder, elf: *std.build.LibExeObjStep, padded: bool) !*TransformFileCommandStep {
+fn blob(b: *Builder, elf: *std.build.LibExeObjStep, mode: enum{Padded, NotPadded}) !*TransformFileCommandStep {
   const dumped_path = b.fmt("{}.bin", .{elf.getOutputPath()});
 
   const dump_step = try make_transform(b, &elf.step,
@@ -100,7 +100,7 @@ fn blob(b: *Builder, elf: *std.build.LibExeObjStep, padded: bool) !*TransformFil
 
   dump_step.step.dependOn(&elf.step);
 
-  if(padded) {
+  if(mode == .Padded) {
     const padded_path = b.fmt("{}.pad", .{dumped_path});
 
     const pad_step = try make_transform(b, &dump_step.step,
@@ -122,7 +122,7 @@ fn blob(b: *Builder, elf: *std.build.LibExeObjStep, padded: bool) !*TransformFil
 fn qemu_aarch64(b: *Builder, board_name: []const u8, desc: []const u8, dep_elf: *std.build.LibExeObjStep) !void {
   const command_step = b.step(board_name, desc);
 
-  const dep = try blob(b, dep_elf, true);
+  const dep = try blob(b, dep_elf, .Padded);
 
   const params =
     &[_][]const u8 {
