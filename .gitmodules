@@ -1,0 +1,3 @@
+[submodule "ipwndfu"]
+	path = ipwndfu
+	url = https://github.com/N00byEdge/ipwndfu.git
