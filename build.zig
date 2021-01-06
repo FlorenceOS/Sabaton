@@ -130,7 +130,7 @@ fn qemu_aarch64(b: *Builder, board_name: []const u8, desc: []const u8, dep_elf: 
       "-M", board_name,
       "-cpu", "cortex-a57",
       "-drive", b.fmt("if=pflash,format=raw,file={},readonly=on", .{dep.output_path}),
-      "-drive", "if=pflash,format=raw,file=Zigger.elf,readonly=on",
+      "-drive", "if=pflash,format=raw,file=test.elf,readonly=on",
       "-m", "4G",
       "-serial", "stdio",
       //"-S", "-s",
@@ -144,6 +144,11 @@ fn qemu_aarch64(b: *Builder, board_name: []const u8, desc: []const u8, dep_elf: 
   command_step.dependOn(&run_step.step);
 }
 
+const Device = struct {
+  name: []const u8,
+  arch: builtin.Arch,
+};
+
 pub fn build(b: *Builder) !void {
   //make_source_blob(b);
 
@@ -152,6 +157,27 @@ pub fn build(b: *Builder) !void {
     "Run aarch64 sabaton on for the qemu virt board",
     try build_elf(b, builtin.Arch.aarch64, "virt"),
   );
+
+  {
+    const elf_devices = &[_]Device{
+    };
+
+    for(elf_devices) |dev|
+      _ = try build_elf(b, builtin.Arch.aarch64, dev.name);
+  }
+
+  {
+    const blob_devices = &[_]Device{
+    };
+
+    for(blob_devices) |dev| {
+      const elf_file = try build_elf(b, builtin.Arch.aarch64, dev.name);
+      const blob_file = try blob(b, elf_file, .NotPadded);
+      var s = b.step(dev.name, b.fmt("Build the blob for {}", .{dev.name}));
+      s.dependOn(&blob_file.step);
+      b.default_step.dependOn(s);
+    }
+  }
 
   // qemu_riscv(b,
   //   "virt",
