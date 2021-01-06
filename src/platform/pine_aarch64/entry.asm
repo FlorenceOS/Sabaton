@@ -40,6 +40,10 @@ dtb_loc:
   .8byte 0
   .8byte 0
 
+// Allwinner A64 user manual:
+//  7.3.4: UART Controller Register List
+//  7.3.5: UART Register Description
+
 .global uart_tag
 .global uart_reg
 .global uart_status
