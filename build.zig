@@ -168,6 +168,7 @@ pub fn build(b: *Builder) !void {
 
   {
     const blob_devices = &[_]Device{
+      .{.name = "t8010", .arch = builtin.Arch.aarch64},
     };
 
     for(blob_devices) |dev| {
