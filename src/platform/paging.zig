@@ -240,8 +240,6 @@ pub fn apply_paging(r: *Root) void {
     \\MSR SCTLR_EL1, %[sctlr]
     \\DSB SY
     \\ISB SY
-    \\paging_flush:
-    \\TLBI ALLE1
     :
     : [ttbr0] "r" (r.ttbr0)
     , [ttbr1] "r" (r.ttbr1)
