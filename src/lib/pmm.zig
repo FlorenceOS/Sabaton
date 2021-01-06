@@ -140,7 +140,7 @@ fn alloc_impl(num_bytes: u64, comptime aligned: bool, p: purpose) []u8 {
 //}
 
 pub fn alloc_aligned(num_bytes: u64, p: purpose) []align(0x1000) u8 {
-  return @alignCast(0x1000, @call(.{.modifier = .never_inline}, alloc_impl, .{num_bytes, true, p}));
+  return @alignCast(0x1000, alloc_impl(num_bytes, true, p));
 }
 
 pub fn write_dram_size(dram_len: u64) void {
