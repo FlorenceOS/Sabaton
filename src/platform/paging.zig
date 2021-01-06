@@ -188,9 +188,7 @@ pub fn apply_paging(r: *Root) void {
   var paging_granule_br1: u64 = undefined;
   var region_size_offset: u64 = undefined;
 
-  const page_size = sabaton.platform.get_page_size();
-
-  switch(page_size) {
+  switch(sabaton.platform.get_page_size()) {
     0x1000 => {
       paging_granule_br0 = 0b00;
       paging_granule_br1 = 0b10;
