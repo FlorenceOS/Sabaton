@@ -160,6 +160,7 @@ pub fn build(b: *Builder) !void {
 
   {
     const elf_devices = &[_]Device{
+      .{.name = "pine", .arch = builtin.Arch.aarch64},
     };
 
     for(elf_devices) |dev|
