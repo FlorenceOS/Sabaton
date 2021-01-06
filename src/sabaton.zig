@@ -18,6 +18,8 @@ pub const io = platform.io;
 pub const debug = @import("builtin").mode == .Debug;
 pub const safety = std.debug.runtime_safety;
 
+pub const upper_half_phys_base = 0xFFFF800000000000;
+
 const std = @import("std");
 
 pub fn panic(reason: []const u8, stacktrace: ?*std.builtin.StackTrace) noreturn {
@@ -112,6 +114,7 @@ pub fn main() noreturn {
   {
     const dram_base = @ptrToInt(dram.ptr);
     sabaton.paging.map(dram_base, dram_base, dram.len, .rw, .memory, &root, .CanOverlap);
+    sabaton.paging.map(dram_base + upper_half_phys_base, dram_base, dram.len, .rw, .memory, &root, .CannotOverlap);
   }
   @call(.{.modifier = .always_inline}, paging.apply_paging, .{&root});
   // Check the flags in the stivale2 header

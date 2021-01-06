@@ -31,6 +31,7 @@ pub fn get_dram() []u8 {
 pub fn map_platform(root: *sabaton.paging.Root) void {
   const uart_base = sabaton.near("uart_reg").read(u64);
   sabaton.paging.map(uart_base, uart_base, 0x1000, .rw, .mmio, root, .CannotOverlap);
+  sabaton.paging.map(uart_base + sabaton.upper_half_phys_base, uart_base, 0x1000, .rw, .mmio, root, .CannotOverlap);
 
   const kernel_elf_base = sabaton.near("kernel_file_loc").read(u64);
   sabaton.paging.map(kernel_elf_base, kernel_elf_base, kernel_elf_base, .r, .memory, root, .CannotOverlap);
