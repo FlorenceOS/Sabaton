@@ -130,7 +130,7 @@ fn qemu_aarch64(b: *Builder, board_name: []const u8, desc: []const u8, dep_elf: 
       "-M", board_name,
       "-cpu", "cortex-a57",
       "-drive", b.fmt("if=pflash,format=raw,file={},readonly=on", .{dep.output_path}),
-      "-drive", "if=pflash,format=raw,file=test.elf,readonly=on",
+      "-drive", "if=pflash,format=raw,file=test/Flork_stivale2_aarch64.pad,readonly=on",
       "-m", "4G",
       "-serial", "stdio",
       //"-S", "-s",
