@@ -34,6 +34,7 @@ fn get_dram_size() u64 {
 pub fn map_platform(root: *sabaton.paging.Root) void {
   const uart_base = sabaton.near("uart_reg").read(u64);
   sabaton.paging.map(uart_base, uart_base, 0x1000, .rw, .mmio, root, .CannotOverlap);
+  sabaton.paging.map(uart_base + sabaton.upper_half_phys_base, uart_base, 0x1000, .rw, .mmio, root, .CannotOverlap);
 
   const blob_base = @ptrToInt(sabaton.near("__blob_base").addr(u8));
   const blob_end  = @ptrToInt(sabaton.near("__blob_end").addr(u8));
