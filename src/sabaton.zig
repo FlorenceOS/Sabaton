@@ -83,6 +83,8 @@ pub fn add_tag(tag: *Stivale2tag) void {
   stivale2_info.tags = tag;
 }
 
+var paging_root: paging.Root = undefined;
+
 pub fn main() noreturn {
   const dram = @call(.{.modifier = .always_inline}, platform.get_dram, .{});
 
@@ -107,13 +109,13 @@ pub fn main() noreturn {
   // TODO: Allocate and put modules here
 
   pmm.switch_state(.PageTables);
-  var root = @call(.{.modifier = .always_inline}, paging.init_paging, .{});
-  @call(.{.modifier = .always_inline}, platform.map_platform, .{&root});
+  paging_root = @call(.{.modifier = .always_inline}, paging.init_paging, .{});
+  @call(.{.modifier = .always_inline}, platform.map_platform, .{&paging_root});
   {
     const dram_base = @ptrToInt(dram.ptr);
-    sabaton.paging.map(dram_base, dram_base, dram.len, .rw, .memory, &root, .CanOverlap);
+    sabaton.paging.map(dram_base, dram_base, dram.len, .rw, .memory, &paging_root, .CanOverlap);
   }
-  @call(.{.modifier = .always_inline}, paging.apply_paging, .{&root});
+  @call(.{.modifier = .always_inline}, paging.apply_paging, .{&paging_root});
   // Check the flags in the stivale2 header
   @call(.{.modifier = .always_inline}, kernel_elf.load, .{kernel_memory_pool});
 
