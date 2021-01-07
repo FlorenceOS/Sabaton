@@ -163,8 +163,12 @@ pub fn build(b: *Builder) !void {
       .{.name = "pine", .arch = builtin.Arch.aarch64},
     };
 
-    for(elf_devices) |dev|
-      _ = try build_elf(b, builtin.Arch.aarch64, dev.name);
+    for(elf_devices) |dev| {
+      const elf_file = try build_elf(b, builtin.Arch.aarch64, dev.name);
+      const s = b.step(dev.name, b.fmt("Build the blob for {}", .{dev.name}));
+      s.dependOn(&elf_file.step);
+      b.default_step.dependOn(s);
+    }
   }
 
   {
