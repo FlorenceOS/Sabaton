@@ -92,6 +92,7 @@ const purpose = enum {
   ReclaimableData,
   KernelPage,
   PageTable,
+  Hole,
 };
 
 fn verify_purpose(p: purpose) void {
@@ -106,7 +107,7 @@ fn verify_purpose(p: purpose) void {
     .Prekernel => p != .ReclaimableData,
 
     // When we're sealed we don't want to allocate anything anymore
-    .Sealed => true,
+    .Sealed => p != .Hole,
   }) {
     sabaton.puts("Allocation purpose ");
     sabaton.print_str(@tagName(p));
