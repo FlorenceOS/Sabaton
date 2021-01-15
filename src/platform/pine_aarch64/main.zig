@@ -3,6 +3,10 @@ pub const io = sabaton.io_impl.status_uart_mmio_32;
 pub const ElfType = [*]u8;
 pub const panic = sabaton.panic;
 
+pub const display = @import("display.zig");
+pub const smp = @import("smp.zig");
+pub const timer = @import("timer.zig");
+
 const std = @import("std");
 
 // We know the page size is 0x1000
