@@ -127,6 +127,13 @@ pub fn main() noreturn {
 
   pmm.switch_state(.Sealed);
 
+  // Maybe do these conditionally one day once we parse stivale2 kernel tags?
+  if(@hasDecl(platform, "display"))
+    platform.display.init();
+
+  if(@hasDecl(platform, "smp"))
+    platform.smp.init();
+
   if(sabaton.debug)
     sabaton.log("Writing DRAM size: 0x{X}\n", .{dram.len});
 
