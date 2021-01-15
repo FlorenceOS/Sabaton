@@ -155,3 +155,35 @@ pub fn main() noreturn {
   );
   unreachable;
 }
+
+pub export fn stivale2_smp_ready(cpu_index: usize) noreturn {
+  sabaton.paging.apply_paging(&paging_root);
+
+  const smp_tag = sabaton.near("smp_tag").addr(u64);
+
+  var goto: u64 = undefined;
+  while(true) {
+    goto = @atomicLoad(u64, &smp_tag[6 + cpu_index * 4 + 1], .Acquire);
+    if(goto != 0)
+      break;
+
+    asm volatile(
+      \\YIELD
+    );
+  }
+
+  const stack = smp_tag[6 + cpu_index * 4];
+  const arg   = smp_tag[6 + cpu_index * 4 + 2];
+
+  asm volatile(
+    \\   MOV SP, %[stack]
+    \\   BR  %[goto]
+    :
+    : [stack] "r" (stack)
+    , [arg] "{X0}" (arg)
+    , [goto] "r" (goto)
+  );
+  unreachable;
+}
+
+
