@@ -62,10 +62,23 @@ fn target(elf: *std.build.LibExeObjStep, arch: builtin.Arch) void {
   });
 }
 
-fn build_elf(b: *Builder, arch: builtin.Arch, target_name: []const u8) !*std.build.LibExeObjStep {
+pub fn board_supported(arch: builtin.Arch, target_name: []const u8) bool {
+  switch(arch) {
+    .aarch64 => {
+      if(std.mem.eql(u8, target_name, "virt"))
+        return true;
+      return false;
+    },
+    else => return false,
+  }
+}
+
+pub fn build_elf(b: *Builder, arch: builtin.Arch, target_name: []const u8, path_prefix: []const u8) !*std.build.LibExeObjStep {
+  if(!board_supported(arch, target_name)) return error.UnsupportedBoard;
+
   const elf_filename = b.fmt("Sabaton_{}_{}.elf", .{target_name, @tagName(arch)});
 
-  const platform_path = b.fmt("src/platform/{}_{}", .{target_name, @tagName(arch)});
+  const platform_path = b.fmt("{}src/platform/{}_{}", .{path_prefix, target_name, @tagName(arch)});
 
   const elf = b.addExecutable(elf_filename, b.fmt("{}/main.zig", .{platform_path}));
   elf.setLinkerScriptPath(b.fmt("{}/linker.ld", .{platform_path}));
@@ -75,7 +88,7 @@ fn build_elf(b: *Builder, arch: builtin.Arch, target_name: []const u8) !*std.bui
   target(elf, arch);
   elf.setBuildMode(.ReleaseSmall);
 
-  elf.setMainPkgPath("src/");
+  elf.setMainPkgPath(b.fmt("{}src/", .{path_prefix}));
   elf.setOutputDir(b.cache_root);
 
   elf.disable_stack_probing = true;
@@ -85,6 +98,22 @@ fn build_elf(b: *Builder, arch: builtin.Arch, target_name: []const u8) !*std.bui
   //elf.step.dependOn(&source_blob.step);
 
   return elf;
+}
+
+pub fn pad_file(b: *Builder, dep: *std.build.Step, path: []const u8) !*TransformFileCommandStep {
+  const padded_path = b.fmt("{}.pad", .{path});
+
+  const pad_step = try make_transform(b, dep,
+    &[_][]const u8 {
+      "/bin/sh", "-c",
+      b.fmt("cp {} {} && truncate -s 64M {}",
+        .{path, padded_path, padded_path})
+    },
+    padded_path,
+  );
+
+  pad_step.step.dependOn(dep);
+  return pad_step;
 }
 
 fn blob(b: *Builder, elf: *std.build.LibExeObjStep, mode: enum{Padded, NotPadded}) !*TransformFileCommandStep {
@@ -100,23 +129,15 @@ fn blob(b: *Builder, elf: *std.build.LibExeObjStep, mode: enum{Padded, NotPadded
 
   dump_step.step.dependOn(&elf.step);
 
-  if(mode == .Padded) {
-    const padded_path = b.fmt("{}.pad", .{dumped_path});
-
-    const pad_step = try make_transform(b, &dump_step.step,
-      &[_][]const u8 {
-        "/bin/sh", "-c",
-        b.fmt("cp {} {} && truncate -s 64M {}",
-          .{dumped_path, padded_path, padded_path})
-      },
-      padded_path,
-    );
-
-    pad_step.step.dependOn(&dump_step.step);
-    return pad_step;
-  }
+  if(mode == .Padded)
+    return pad_file(b, &dump_step.step, dump_step.output_path);
 
   return dump_step;
+}
+
+pub fn build_blob(b: *Builder, arch: builtin.Arch, target_name: []const u8, path_prefix: []const u8) !*TransformFileCommandStep {
+  const elf = try build_elf(b, arch, target_name, path_prefix);
+  return blob(b, elf, .Padded);
 }
 
 fn qemu_aarch64(b: *Builder, board_name: []const u8, desc: []const u8, dep_elf: *std.build.LibExeObjStep) !void {
@@ -155,7 +176,7 @@ pub fn build(b: *Builder) !void {
   try qemu_aarch64(b,
     "virt",
     "Run aarch64 sabaton on for the qemu virt board",
-    try build_elf(b, builtin.Arch.aarch64, "virt"),
+    try build_elf(b, builtin.Arch.aarch64, "virt", "./"),
   );
 
   {
@@ -176,7 +197,7 @@ pub fn build(b: *Builder) !void {
     };
 
     for(blob_devices) |dev| {
-      const elf_file = try build_elf(b, builtin.Arch.aarch64, dev.name);
+      const elf_file = try build_elf(b, builtin.Arch.aarch64, dev.name, "./");
       const blob_file = try blob(b, elf_file, .NotPadded);
       const s = b.step(dev.name, b.fmt("Build the blob for {}", .{dev.name}));
       s.dependOn(&blob_file.step);
