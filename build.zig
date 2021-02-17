@@ -67,6 +67,8 @@ pub fn board_supported(arch: builtin.Arch, target_name: []const u8) bool {
     .aarch64 => {
       if(std.mem.eql(u8, target_name, "virt"))
         return true;
+      if(std.mem.eql(u8, target_name, "pine"))
+        return true;
       return false;
     },
     else => return false,
