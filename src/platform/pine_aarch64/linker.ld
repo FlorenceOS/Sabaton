@@ -13,15 +13,16 @@ __pmm_base = 0;
 
 SECTIONS {
   . = 0x40000000;
+  __blob_base = .;
   .blob : {
-    __blob_base = .;
     *(.text.entry)
     *(.text*)
     *(.data*)
     *(.rodata*)
     *(.bss*)
-    __blob_end = .;
+    *(.COMMON)
   }: blob
+  __blob_end = .;
 
   /DISCARD/ : {
     *(.eh_frame*)

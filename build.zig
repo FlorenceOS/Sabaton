@@ -71,7 +71,7 @@ fn build_elf(b: *Builder, arch: builtin.Arch, target_name: []const u8) !*std.bui
   elf.setLinkerScriptPath(b.fmt("{}/linker.ld", .{platform_path}));
   elf.addAssemblyFile(b.fmt("{}/entry.asm", .{platform_path}));
 
-  //elf.addBuildOption([] const u8, "source_blob_path", std.mem.concat(b.allocator, u8, &[_][]const u8{ "../../", source_blob_path } ) catch unreachable);
+  elf.addBuildOption([] const u8, "board_name", target_name);
   target(elf, arch);
   elf.setBuildMode(.ReleaseSmall);
 
@@ -160,7 +160,6 @@ pub fn build(b: *Builder) !void {
 
   {
     const elf_devices = &[_]Device{
-      .{.name = "pine", .arch = builtin.Arch.aarch64},
     };
 
     for(elf_devices) |dev| {
@@ -173,6 +172,7 @@ pub fn build(b: *Builder) !void {
 
   {
     const blob_devices = &[_]Device{
+      .{.name = "pine", .arch = builtin.Arch.aarch64},
     };
 
     for(blob_devices) |dev| {

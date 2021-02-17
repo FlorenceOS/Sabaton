@@ -43,7 +43,7 @@ pub fn print_chars(ptr: [*]const u8, num: usize) void {
   }
 }
 
-fn print_hex_impl(num: u64, nibbles: isize) void {
+fn wrapped_print_hex(num: u64, nibbles: isize) void {
   var i: isize = nibbles - 1;
   while(i >= 0) : (i -= 1){
     putchar("0123456789ABCDEF"[(num >> @intCast(u6, i * 4))&0xF]);
@@ -51,7 +51,7 @@ fn print_hex_impl(num: u64, nibbles: isize) void {
 }
 
 pub fn print_hex(num: anytype) void {
-  @call(.{.modifier = .never_inline}, print_hex_impl, .{num, (@bitSizeOf(@TypeOf(num)) + 3)/4});
+  @call(.{.modifier = .never_inline}, wrapped_print_hex, .{num, (@bitSizeOf(@TypeOf(num)) + 3)/4});
 }
 
 pub fn log_hex(str: [*:0]const u8, val: anytype) void {
@@ -60,13 +60,21 @@ pub fn log_hex(str: [*:0]const u8, val: anytype) void {
   putchar('\n');
 }
 
-pub fn puts(str_c: [*:0]const u8) void {
+fn wrapped_puts(str_c: [*:0]const u8) void {
   var str = str_c;
   while(str[0] != 0): (str += 1)
-    putchar(str[0]);
+    @call(.{.modifier = .never_inline}, putchar, .{str[0]});
+}
+
+pub fn puts(str_c: [*:0]const u8) void {
+  @call(.{.modifier = .never_inline}, wrapped_puts, .{str_c});
+}
+
+fn wrapped_print_str(str: []const u8) void {
+  for(str) |c|
+    putchar(c);
 }
 
 pub fn print_str(str: []const u8) void {
-  for(str) |c|
-    putchar(c);
+  @call(.{.modifier = .never_inline}, wrapped_print_str, .{str});
 }

@@ -14,8 +14,7 @@ pub fn get_page_size() u64 {
   return 0x1000;
 }
 
-export fn _main() noreturn {
-  //sabaton.paging.detect_page_size();
+export fn _main(alt_pmm_base: u64) noreturn {
   @call(.{.modifier = .always_inline}, sabaton.main, .{});
 }
 
@@ -42,7 +41,7 @@ pub fn map_platform(root: *sabaton.paging.Root) void {
 
   const blob_base = @ptrToInt(sabaton.near("__blob_base").addr(u8));
   const blob_end  = @ptrToInt(sabaton.near("__blob_end").addr(u8));
-  sabaton.paging.map(blob_base, blob_base, blob_end - blob_base, .rwx, .memory, root, .CannotOverlap);
+  sabaton.paging.map(blob_base, blob_base, blob_end - blob_base, .rwx, .memory, root, .CanOverlap);
 }
 
 pub fn add_platform_tags(kernel_header: *sabaton.Stivale2hdr) void {
