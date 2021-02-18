@@ -42,7 +42,7 @@ fn get_index(vaddr: u64, base_bits: u6, level: u64) usize {
 }
 
 fn extra_bits(perm: Perms, mt: MemoryType, page_size: usize, botlevel: bool) u64 {
-  var bits: u64 = 0x1 | (2 << 2) | (1 << 5) | (1 << 10);
+  var bits: u64 = 0x1 | (1 << 5) | (1 << 10);
 
   // Set the walk bit
   if(page_size < 0x10000 and botlevel) bits |= 2;
