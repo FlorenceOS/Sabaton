@@ -1,4 +1,3 @@
-setenv loads_echo 1
 setenv autostart no
 
 load mmc "1:2" 40000000 /identity
