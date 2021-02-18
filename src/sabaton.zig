@@ -181,7 +181,11 @@ pub fn main() noreturn {
     .data = platform.get_kernel(),
   };
 
+  sabaton.puts("Verifying ELF\n");
+
   kernel_elf.init();
+
+  sabaton.puts("ELF verified\n");
 
   var kernel_header: Stivale2hdr = undefined;
   _ = vital(
@@ -193,27 +197,36 @@ pub fn main() noreturn {
 
   // Allocate space for backing pages of the kernel
   pmm.switch_state(.KernelPages);
+  sabaton.puts("Allocating kernel memory\n");
   const kernel_memory_pool = pmm.alloc_aligned(kernel_elf.paged_bytes(), .KernelPage);
+  sabaton.log_hex("Bytes allocated for kernel: ", kernel_memory_pool.len);
 
   // TODO: Allocate and put modules here
 
   pmm.switch_state(.PageTables);
   paging_root = paging.init_paging();
   platform.map_platform(&paging_root);
+  sabaton.puts("Mapping dram\n");
   {
     const dram_base = @ptrToInt(dram.ptr);
     sabaton.paging.map(dram_base, dram_base, dram.len, .rw, .memory, &paging_root, .CanOverlap);
     sabaton.paging.map(dram_base + upper_half_phys_base, dram_base, dram.len, .rw, .memory, &paging_root, .CannotOverlap);
   }
+  sabaton.puts("Finished mapping dram\n");
 
-  if(@hasDecl(platform, "display"))
+  if(@hasDecl(platform, "display")) {
+    sabaton.puts("Preparing display driver\n");
     platform.display.prepare();
+  }
 
-  if(@hasDecl(platform, "smp"))
+  if(@hasDecl(platform, "smp")) {
+    sabaton.puts("Preparing SMP\n");
     platform.smp.prepare();
+  }
 
   paging.apply_paging(&paging_root);
   // Check the flags in the stivale2 header
+  sabaton.puts("Loading kernel into memory\n");
   kernel_elf.load(kernel_memory_pool);
 
   sabaton.puts("Sealing PMM\n");
@@ -221,11 +234,15 @@ pub fn main() noreturn {
   pmm.switch_state(.Sealed);
 
   // Maybe do these conditionally one day once we parse stivale2 kernel tags?
-  if(@hasDecl(platform, "display"))
+  if(@hasDecl(platform, "display")) {
+    sabaton.puts("Starting display\n");
     platform.display.init();
+  }
 
-  if(@hasDecl(platform, "smp"))
+  if(@hasDecl(platform, "smp")) {
+    sabaton.puts("Starting SMP\n");
     platform.smp.init();
+  }
 
   sabaton.log_hex("Writing DRAM size: 0x", dram.len);
 
