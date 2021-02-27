@@ -57,6 +57,7 @@ pub fn do_dma(buffer: []u8, control: u32, dma_addr: *volatile u64) void {
     .addr = std.mem.nativeToBig(u64, @ptrToInt(buffer.ptr)),
   };
   dma_addr.* = std.mem.nativeToBig(u64, @ptrToInt(access));
+  asm volatile("":::"memory");
   if(sabaton.safety) {
     while(true) {
       const ctrl = std.mem.bigToNative(u32, access.control);
