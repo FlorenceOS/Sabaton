@@ -44,3 +44,13 @@ pub fn add_platform_tags(kernel_header: *sabaton.Stivale2hdr) void {
   sabaton.add_tag(&sabaton.near("uart_tag").addr(sabaton.Stivale2tag)[0]);
   sabaton.add_tag(&sabaton.near("devicetree_tag").addr(sabaton.Stivale2tag)[0]);
 }
+
+pub fn get_uart_info() io.Info {
+  const base = 0x1C28000;
+  return .{
+    .uart = @intToPtr(*volatile u32, base),
+    .status = @intToPtr(*volatile u32, base + 0x14),
+    .mask = 0x20,
+    .value = 0x20,
+  };
+}

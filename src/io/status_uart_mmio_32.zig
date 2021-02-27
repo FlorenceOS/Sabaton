@@ -17,13 +17,14 @@ fn putchar_impl(
 }
 
 pub fn putchar(char: u8) void {
-  const uart_tag = @ptrToInt(sabaton.near("uart_tag").addr(u8));
-  
-  const uart_reg = @intToPtr(**volatile u32, uart_tag + 0x10).*;
-  const status_reg = @intToPtr(**volatile u32, uart_tag + 0x18).*;
+  const uart_info: Info = sabaton.platform.get_uart_info();
 
-  const mask = @intToPtr(*u32, uart_tag + 0x20).*;
-  const value = @intToPtr(*u32, uart_tag + 0x24).*;
-
-  putchar_impl(char, uart_reg, status_reg, mask, value);
+  putchar_impl(char, uart_info.uart, uart_info.status, uart_info.mask, uart_info.value);
 }
+
+pub const Info = struct {
+  uart: *volatile u32,
+  status: *volatile u32,
+  mask: u32,
+  value: u32,
+};
