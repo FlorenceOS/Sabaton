@@ -7,8 +7,6 @@ pub const display = @import("display.zig");
 pub const smp = @import("smp.zig");
 pub const timer = @import("timer.zig");
 
-const std = @import("std");
-
 // We know the page size is 0x1000
 pub fn get_page_size() u64 {
   return 0x1000;

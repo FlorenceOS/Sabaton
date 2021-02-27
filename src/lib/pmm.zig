@@ -32,7 +32,7 @@ comptime {
     \\   .8byte 0
     \\ pt_size:
     \\   .8byte 0
-    \\   .8byte 0x1000 // Reclaimable, will be 0x070c8a122cc97b24 if Sabaton tag is present in kernel
+    \\   .8byte 0x1000 // Reclaimable
     \\
     \\ // Usable region
     \\ pmm_head:
@@ -59,7 +59,7 @@ pub fn verify_transition(s: pmm_state) void {
   if(sabaton.safety and (current_state == .Sealed or (@enumToInt(current_state) + 1 != @enumToInt(s)))) {
     sabaton.puts("Unexpected pmm sate: ");
     sabaton.print_str(@tagName(s));
-    sabaton.puts("while in state: ");
+    sabaton.puts(" while in state: ");
     sabaton.print_str(@tagName(current_state));
     sabaton.putchar('\n');
     unreachable;

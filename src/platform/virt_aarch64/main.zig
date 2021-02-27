@@ -57,7 +57,7 @@ pub fn map_platform(root: *sabaton.paging.Root) void {
 
 // Dram size varies as you can set different amounts of RAM for your VM
 fn get_dram_size() u64 {
-  const memory_blob = sabaton.vital(sabaton.dtb.find("memory", "reg"), "Cannot find memory in dtb", false);
+  const memory_blob = sabaton.vital(sabaton.dtb.find("memory@", "reg"), "Cannot find memory in dtb", false);
   const base = std.mem.readIntBig(u64, memory_blob[0..8]);
   const size = std.mem.readIntBig(u64, memory_blob[8..16]);
 

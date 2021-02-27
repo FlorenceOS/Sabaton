@@ -3,6 +3,7 @@ pub const io_impl = @import("io/io.zig");
 pub const util = @import("lib/util.zig");
 pub const dtb = @import("lib/dtb.zig");
 pub const pmm = @import("lib/pmm.zig");
+
 pub const paging = @import("platform/paging.zig");
 pub const pci = @import("platform/pci.zig");
 pub const fw_cfg = @import("platform/drivers/fw_cfg.zig");
