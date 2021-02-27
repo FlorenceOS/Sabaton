@@ -14,6 +14,7 @@ SECTIONS {
   .blob : {
     __blob_base = .;
     *(.text.entry)
+    KEEP(*(.text.main))
     *(.text*)
     *(.data*)
     *(.rodata*)

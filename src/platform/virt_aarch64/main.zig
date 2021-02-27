@@ -11,7 +11,7 @@ pub fn get_page_size() u64 {
   return page_size;
 }
 
-export fn _main() noreturn {
+export fn _main() linksection(".text.main") noreturn {
   page_size = sabaton.paging.detect_page_size();
   @call(.{.modifier = .always_inline}, sabaton.main, .{});
 }

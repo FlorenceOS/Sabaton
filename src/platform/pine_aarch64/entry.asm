@@ -63,8 +63,8 @@ el1:
   LDR X1, dtb_loc
   MOV SP, X1
 
-  B _main
-
+  // Fall through to main
+  
 .section .data
 // Allwinner A64 user manual:
 //  7.3.4: UART Controller Register List
