@@ -5,7 +5,7 @@ go 40000000
 
 load mmc "1:2" 40000000 /Sabaton.bin
 
-setexpr load_addr 40010000
+setexpr load_addr 40020000
 mw.l 40000010 ${load_addr}
 load mmc "1:4" ${load_addr} /dtb
 mw.l 40000018 ${filesize}
