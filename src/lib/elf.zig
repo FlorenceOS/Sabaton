@@ -55,13 +55,11 @@ pub const elf64phdr = packed struct {
 
 pub const Elf = struct {
   data: sabaton.platform.ElfType,
-  shstrtab: ?[]u8 = null,
+  shstrtab: ?[]u8 = undefined,
 
   pub fn init(self: *@This()) void {
-    var failed = false;
-
     if(!std.mem.eql(u8, self.data[0..4], "\x7FELF")) {
-      @panic("Invalid ELF magic!");
+      @panic("Invalid kernel ELF magic!");
     }
 
     const shshstrtab = self.shdr(self.header().shstrndx);
@@ -92,9 +90,6 @@ pub const Elf = struct {
     while(snum < h.shnum): (snum += 1) {
       const s = self.shdr(snum);
       const sname = self.section_name(s.name);
-
-      if(sabaton.debug)
-        sabaton.log("Section name: \"{}\"\n", .{sname});
 
       if(std.mem.eql(u8, sname[0..name.len], name) and sname[name.len] == 0) {
         var load_size = s.size;
@@ -131,7 +126,7 @@ pub const Elf = struct {
       @memset(mempool.ptr + ph.filesz, 0, ph.memsz - ph.filesz);
 
       const perms = @intToEnum(sabaton.paging.Perms, @intCast(u3, ph.flags & 0x7));
-      sabaton.paging.map(ph.vaddr, @ptrToInt(mempool.ptr), ph.memsz, perms, .memory, null, .CannotOverlap);
+      sabaton.paging.map(ph.vaddr, @ptrToInt(mempool.ptr), ph.memsz, perms, .memory, null);
 
       // TODO: Relocations
 

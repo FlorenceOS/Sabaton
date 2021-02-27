@@ -1,17 +1,30 @@
 const sabaton = @import("root").sabaton;
 
-fn await_write() void {
-  const status_reg = sabaton.near("uart_status").read(*volatile u32);
-  const mask = sabaton.near("uart_status_mask").read(u32);
-  const value = sabaton.near("uart_status_value").read(u32);
+fn putchar_impl(
+  char: u8,
+  uart_reg: *volatile u32,
+  status_reg: *volatile u32,
+  mask: u32,
+  value: u32
+) void {
+  if(char == '\n')
+    putchar_impl('\r', uart_reg, status_reg, mask, value);
 
+  // Wait until output is ready
   while((status_reg.* & mask) != value) { }
+
+  sabaton.io_impl.uart_mmio_32.write_reg(char, uart_reg);
 }
 
 pub fn putchar(char: u8) void {
-  if(char == '\n')
-    putchar('\r');
-    
-  await_write();
-  sabaton.io_impl.uart_mmio_32.write_uart_reg(char);
+  const uart_info: Info = sabaton.platform.get_uart_info();
+
+  putchar_impl(char, uart_info.uart, uart_info.status, uart_info.mask, uart_info.value);
 }
+
+pub const Info = struct {
+  uart: *volatile u32,
+  status: *volatile u32,
+  mask: u32,
+  value: u32,
+};

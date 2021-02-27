@@ -25,14 +25,18 @@ pub const Root = struct {
 };
 
 fn make_table_at(e: *pte) table_ptr {
-  if(e.* & 1 != 0) {
-    return @intToPtr(table_ptr, e.* & 0x0000FFFFFFFFF000);
-  } else {
-    const page_size = sabaton.platform.get_page_size();
-    const ret = sabaton.pmm.alloc_aligned(page_size, .PageTable);
-    e.* = @ptrToInt(ret.ptr);
-    e.* |= 1 << 63 | 0x3;
-    return @ptrCast(table_ptr, ret.ptr);
+  switch(decode(e.*, false)) {
+    .Mapping => unreachable,
+    .Table => {
+      return @intToPtr(table_ptr, e.* & 0x0000FFFFFFFFF000);  
+    },
+    .Empty => {
+      const page_size = sabaton.platform.get_page_size();
+      const ret = sabaton.pmm.alloc_aligned(page_size, .PageTable);
+      //sabaton.log_hex("Allocated new table at ", ret.ptr);
+      e.* = @ptrToInt(ret.ptr) | 1 << 63 | 3;
+      return @ptrCast(table_ptr, ret.ptr);
+    },
   }
 }
 
@@ -41,30 +45,14 @@ fn get_index(vaddr: u64, base_bits: u6, level: u64) usize {
   return (vaddr >> shift_bits) & ((@as(u64, 1) << (base_bits - 3)) - 1);
 }
 
-fn make_pte(vaddr: u64, base_bits: u6, levels: u64, tbl_in: table_ptr) *pte {
-  var level = levels - 1;
-  var tbl = tbl_in;
-  while(level > 0): (level -= 1) {
-    const ind = get_index(vaddr, base_bits, level);
-    tbl = @call(.{.modifier = .never_inline}, make_table_at, .{&tbl[ind]});
-  }
+fn extra_bits(perm: Perms, mt: MemoryType, page_size: usize, botlevel: bool) u64 {
+  var bits: u64 = 0x1 | (1 << 5) | (1 << 10);
 
-  const ind = get_index(vaddr, base_bits, 0);
-  return &tbl[ind];
-}
+  // Set the walk bit
+  if(page_size < 0x10000 and botlevel) bits |= 2;
 
-fn extra_bits(perm: Perms, mt: MemoryType) u64 {
-  // var bits: u64 = 0x623;
-  // bits |= switch(mt) {
-  //   .memory => @as(u64, 0 << 2),
-  //   .mmio   => @as(u64, 1 << 2),
-  // };
-  var bits: u64 = 0x3 | (2 << 2) | (1 << 5) | (1 << 10);
-  const bit_nx = 1 << 54;
-  const bit_nw = 1 << 7;
-
-  if(@enumToInt(perm) & @enumToInt(Perms.w) == 0) bits |= bit_nw;
-  if(@enumToInt(perm) & @enumToInt(Perms.x) == 0) bits |= bit_nx;
+  if(@enumToInt(perm) & @enumToInt(Perms.w) == 0) bits |= 1 << 7;
+  if(@enumToInt(perm) & @enumToInt(Perms.x) == 0) bits |= 1 << 54;
   bits |= switch(mt) {
     .memory => @as(u64, 0 << 2 | 2 << 8 | 1 << 11),
     .mmio   => @as(u64, 1 << 2 | 2 << 8),
@@ -111,14 +99,23 @@ pub fn init_paging() Root {
   };
 }
 
+fn can_map(size: u64, vaddr: u64, paddr: u64, large_step: u64) bool {
+  if(large_step > 0x40000000)
+    return false;
+  if(size < large_step)
+    return false;
+  const mask = large_step - 1;
+  if(vaddr & mask != 0)
+    return false;
+  if(paddr & mask != 0)
+    return false;
+  return true;
+}
+
 fn choose_root(r: *const Root, vaddr: u64) table_ptr {
   if(sabaton.util.upper_half(vaddr)) {
-    if(sabaton.debug)
-      sabaton.log("vaddr 0x{X} is upper half\n", .{vaddr});
     return r.ttbr1;
   } else {
-    if(sabaton.debug)
-      sabaton.log("vaddr 0x{X} is lower half\n", .{vaddr});
     return r.ttbr0;
   }
 }
@@ -130,7 +127,21 @@ pub fn current_root() Root {
   };
 }
 
-pub fn map(vaddr_c: u64, paddr_c: u64, size_c: u64, perm: Perms, mt: MemoryType, in_root: ?*Root, mode: enum{CanOverlap, CannotOverlap}) void {
+const Decoded = enum {
+  Mapping,
+  Table,
+  Empty,
+};
+
+pub fn decode(e: pte, bottomlevel: bool) Decoded {
+  if(e & 1 == 0)
+    return .Empty;
+  if(bottomlevel or e & 2 == 0)
+    return .Mapping;
+  return .Table;
+}
+
+pub fn map(vaddr_c: u64, paddr_c: u64, size_c: u64, perm: Perms, mt: MemoryType, in_root: ?*Root) void {
   const page_size = sabaton.platform.get_page_size();
   var vaddr = vaddr_c;
   var paddr = paddr_c;
@@ -147,23 +158,55 @@ pub fn map(vaddr_c: u64, paddr_c: u64, size_c: u64, perm: Perms, mt: MemoryType,
     root = choose_root(&roots, vaddr);
   }
 
-  const levels = 4;
-  const base_bits = @intCast(u6, @ctz(u64, page_size));
-  const bits = extra_bits(perm, mt);
+  const levels: usize =
+    switch(page_size) {
+      0x1000, 0x4000 => 4,
+      0x10000 => 3,
+      else => unreachable,
+    };
 
-  if(sabaton.debug)
-    sabaton.log("Extra bits for mode {}, {} are 0x{X}\n", .{perm, mt, bits});
+  const base_bits = @intCast(u6, @ctz(u64, page_size));
+
+  const small_bits = extra_bits(perm, mt, page_size, true);
+  const large_bits = extra_bits(perm, mt, page_size, false);
 
   while(size != 0) {
-    const ent = make_pte(vaddr, base_bits, levels, root);
-    if(ent.* == 0) {
-      make_mapping_at(ent, paddr, bits);
-    } else if (mode == .CannotOverlap) {
-      @panic("Overlapping mapping");
+    var current_step_size = page_size << @intCast(u6, (base_bits - 3) * (levels - 1));
+    var level = levels - 1;
+    var current_table = root;
+
+    while(true) {
+      const ind = get_index(vaddr, base_bits, level);
+      // We can only map at this level if it's not a table
+      switch(decode(current_table[ind], level == 0)) {
+        .Mapping => {
+          sabaton.log_hex("Overlapping mapping at ", vaddr);
+          sabaton.log_hex("PTE is ", current_table[ind]);
+          unreachable;
+        },
+        .Table => { }, // Just iterate to the next level
+        .Empty => {
+          // If we can map at this level, do so
+          if(can_map(size, vaddr, paddr, current_step_size)) {
+            const bits = if(level == 0) small_bits else large_bits;
+            make_mapping_at(&current_table[ind], paddr, bits);
+            break;
+          }
+          // Otherwise, just iterate to the next level
+        }
+      }
+
+      if(level == 0)
+        unreachable;
+
+      current_table = make_table_at(&current_table[ind]);
+      current_step_size >>= (base_bits - 3);
+      level -= 1;
     }
-    size -= page_size;
-    vaddr += page_size;
-    paddr += page_size;
+
+    vaddr += current_step_size;
+    paddr += current_step_size;
+    size -= current_step_size;
   }
 }
 

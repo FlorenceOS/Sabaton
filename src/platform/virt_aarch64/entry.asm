@@ -45,7 +45,7 @@ _start:
   ADR X18, _start
   MOV SP, X18
 
-  B _main
+  // Fall through to main
 
 .global devicetree_tag
 .global uart_tag

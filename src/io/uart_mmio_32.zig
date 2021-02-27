@@ -1,11 +1,12 @@
 const sabaton = @import("root").sabaton;
 
-pub fn write_uart_reg(char: u8) void {
-  sabaton.near("uart_reg").read(*volatile u32).* = @as(u32, char);
+pub fn write_reg(char: u8, reg: *volatile u32) void {
+  reg.* = @as(u32, char);
 }
 
 pub fn putchar(char: u8) void {
+  const addr = sabaton.near("uart_reg").read(*volatile u32);
   if(char == '\n')
-    putchar('\r');
-  write_uart_reg(char);
+    write_reg('\r', addr);
+  write_reg(char, addr);
 }
