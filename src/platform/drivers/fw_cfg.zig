@@ -49,7 +49,6 @@ const DMAAccess = packed struct {
 };
 
 pub fn do_dma(buffer: []u8, control: u32, dma_addr: *volatile u64) void {
-  sabaton.log_hex("DMA control: ", control);
   var access_bytes: [@sizeOf(DMAAccess)]u8 = undefined;
   var access = @ptrCast(*volatile DMAAccess, &access_bytes[0]);
   access.* = .{

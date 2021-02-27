@@ -14,8 +14,6 @@ pub fn init() bool {
   if(sabaton.fw_cfg.find_file("etc/ramfb")) |ramfb| {
     const framebuffer = @ptrToInt(sabaton.pmm.alloc_aligned(sabaton.fb_bytes, .Hole).ptr);
 
-    sabaton.log_hex("File has selector ", ramfb.select);
-
     var cfg: packed struct {
       addr: u64 = undefined,
       fourcc: u32 = std.mem.nativeToBig(u32, combine('X', 'R', '2', '4')),
