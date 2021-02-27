@@ -38,6 +38,12 @@ export fn _main() linksection(".text.main") noreturn {
 }
 
 pub fn get_kernel() [*]u8 {
+  if(sabaton.fw_cfg.find_file("opt/Sabaton/kernel")) |kernel| {
+    sabaton.log_hex("fw_cfg kernel of size ", kernel.size);
+    const kernel_bytes = sabaton.pmm.alloc_aligned(kernel.size, .ReclaimableData);
+    kernel.read(kernel_bytes);
+    return kernel_bytes.ptr;
+  }
   return sabaton.near("kernel_file_loc").read([*]u8);
 }
 
