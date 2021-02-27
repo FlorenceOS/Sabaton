@@ -33,6 +33,7 @@ pub fn get_page_size() u64 {
 
 export fn _main() linksection(".text.main") noreturn {
   page_size = sabaton.paging.detect_page_size();
+  sabaton.fw_cfg.init_from_dtb();
   @call(.{.modifier = .always_inline}, sabaton.main, .{});
 }
 
