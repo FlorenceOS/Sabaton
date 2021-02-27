@@ -157,7 +157,7 @@ fn qemu_aarch64(b: *Builder, board_name: []const u8, desc: []const u8, dep_elf: 
       //"-S", "-s",
       "-d", "int",
       "-smp", "8",
-      "-device", "virtio-gpu-pci",
+      "-device", "ramfb",
     };
 
   const run_step = b.addSystemCommand(params);
