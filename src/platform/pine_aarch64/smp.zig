@@ -56,10 +56,6 @@ comptime {
 const cpucfg_addr = 0x170_0C00;
 var current_cpuid: usize = 0;
 
-pub fn prepare() void {
-    sabaton.paging.map(cpucfg_addr, cpucfg_addr, 0x1000, .rw, .mmio, null, .CannotOverlap);
-}
-
 pub fn init() void {
     sabaton.add_tag(&sabaton.near("smp_tag").addr(sabaton.Stivale2tag)[0]);
 

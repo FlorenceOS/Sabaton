@@ -214,16 +214,6 @@ pub fn main() noreturn {
   }
   sabaton.puts("Finished mapping dram\n");
 
-  if(@hasDecl(platform, "display")) {
-    sabaton.puts("Preparing display driver\n");
-    platform.display.prepare();
-  }
-
-  if(@hasDecl(platform, "smp")) {
-    sabaton.puts("Preparing SMP\n");
-    platform.smp.prepare();
-  }
-
   paging.apply_paging(&paging_root);
   // Check the flags in the stivale2 header
   sabaton.puts("Loading kernel into memory\n");

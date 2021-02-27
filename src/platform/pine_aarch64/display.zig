@@ -60,11 +60,6 @@ fn tcon1(offset: u16) *volatile u32 {
 // Allwinner A64 user manual:
 //  6.2.5 TCOn0 Module register description
 
-pub fn prepare() void {
-    sabaton.paging.map(de_addr,    de_addr, 0x40_0000, .rw, .mmio, null, .CannotOverlap);
-    sabaton.paging.map(tcon0_addr, tcon0_addr, 0x2000, .rw, .mmio, null, .CannotOverlap);
-}
-
 pub fn init() void {
     sabaton.platform.timer.init();
     const fb_tag = sabaton.near("framebuffer_tag");

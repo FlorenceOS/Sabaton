@@ -29,16 +29,9 @@ pub fn get_dram() []u8 {
 }
 
 pub fn map_platform(root: *sabaton.paging.Root) void {
-  const uart_base = sabaton.near("uart_reg").read(u64);
-  sabaton.paging.map(uart_base, uart_base, 0x1000, .rw, .mmio, root, .CannotOverlap);
-  sabaton.paging.map(uart_base + sabaton.upper_half_phys_base, uart_base, 0x1000, .rw, .mmio, root, .CannotOverlap);
-
-  const kernel_elf_base = sabaton.near("kernel_file_loc").read(u64);
-  sabaton.paging.map(kernel_elf_base, kernel_elf_base, kernel_elf_base, .r, .memory, root, .CannotOverlap);
-
-  const blob_base = @ptrToInt(sabaton.near("__blob_base").addr(u8));
-  const blob_end  = @ptrToInt(sabaton.near("__blob_end").addr(u8));
-  sabaton.paging.map(blob_base, blob_base, blob_end - blob_base, .rwx, .memory, root, .CannotOverlap);
+  sabaton.paging.map(0, 0, 1024 * 1024 * 1024, .rw, .mmio, root);
+  sabaton.paging.map(sabaton.upper_half_phys_base, 0, 1024 * 1024 * 1024, .rw, .mmio, root);
+  sabaton.pci.init_from_dtb(root);
 }
 
 // Dram size varies as you can set different amounts of RAM for your VM

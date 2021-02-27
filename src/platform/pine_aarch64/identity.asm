@@ -15,9 +15,11 @@
   // MAIR should be FF440C0400 at this point (don't ask)
   // Identity map first 1G of dram
   // 1G PTE, memory, AttrIdx = 4
-  MOV X1, #0x40000000
-  MOVK X1, (1 << 0) | (4 << 2) | (1 << 5) | (1 << 10) | (2 << 8)
-  STR X1, [X0, #8]
+  MOVZ X2, (1024 * 1024 * 1024) >> 16, LSL #16
+  MOVK X2, (1 << 0) | (4 << 2) | (1 << 5) | (1 << 10) | (2 << 8), LSL #0
+  // 1G PTE, device, AttrIdx = 0
+  MOVZ X1, (1 << 0) | (0 << 2) | (1 << 5) | (1 << 10) | (2 << 8)
+  STP X1, X2, [X0]
 
   // Reenable paging
   MSR SCTLR_EL2, X5

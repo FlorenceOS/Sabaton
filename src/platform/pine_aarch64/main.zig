@@ -35,13 +35,9 @@ fn get_dram_size() u64 {
 }
 
 pub fn map_platform(root: *sabaton.paging.Root) void {
-  const uart_base = sabaton.near("uart_reg").read(u64);
-  sabaton.paging.map(uart_base, uart_base, 0x1000, .rw, .mmio, root, .CannotOverlap);
-  sabaton.paging.map(uart_base + sabaton.upper_half_phys_base, uart_base, 0x1000, .rw, .mmio, root, .CannotOverlap);
-
-  const blob_base = @ptrToInt(sabaton.near("__blob_base").addr(u8));
-  const blob_end  = @ptrToInt(sabaton.near("__blob_end").addr(u8));
-  sabaton.paging.map(blob_base, blob_base, blob_end - blob_base, .rwx, .memory, root, .CanOverlap);
+  // MMIO area
+  sabaton.paging.map(0, 0, 1024 * 1024 * 1024, .rw, .mmio, root);
+  sabaton.paging.map(sabaton.upper_half_phys_base, 0, 1024 * 1024 * 1024, .rw, .mmio, root);
 }
 
 pub fn add_platform_tags(kernel_header: *sabaton.Stivale2hdr) void {
