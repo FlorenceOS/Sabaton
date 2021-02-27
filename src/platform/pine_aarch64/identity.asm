@@ -1,3 +1,6 @@
+.section .blob, "ax"
+.global _start
+_start:
   // Disable paging
   MRS X5, SCTLR_EL2
   AND X0, X5, #~1
