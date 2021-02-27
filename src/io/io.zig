@@ -51,7 +51,16 @@ fn wrapped_print_hex(num: u64, nibbles: isize) void {
 }
 
 pub fn print_hex(num: anytype) void {
-  @call(.{.modifier = .never_inline}, wrapped_print_hex, .{num, (@bitSizeOf(@TypeOf(num)) + 3)/4});
+  switch(@typeInfo(@TypeOf(num))) {
+    else => @compileError("Unknown print_hex type!"),
+
+    .Int =>
+      @call(.{.modifier = .never_inline}, wrapped_print_hex, .{num, (@bitSizeOf(@TypeOf(num)) + 3)/4}),
+    .Pointer =>
+      @call(.{.modifier = .always_inline}, print_hex, .{@ptrToInt(num)}),
+    .ComptimeInt =>
+      @call(.{.modifier = .always_inline}, print_hex, .{@as(usize, num)}),
+  }
 }
 
 pub fn log_hex(str: [*:0]const u8, val: anytype) void {
