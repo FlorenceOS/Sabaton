@@ -1,7 +1,7 @@
 setenv autostart no
 
-load mmc "1:2" 40000000 /identity
-go 40000000
+load mmc "1:2" 80000000 /identity
+go 80000000
 
 load mmc "1:2" 40000000 /Sabaton.bin
 
