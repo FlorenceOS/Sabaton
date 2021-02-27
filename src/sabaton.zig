@@ -4,6 +4,9 @@ pub const util = @import("lib/util.zig");
 pub const dtb = @import("lib/dtb.zig");
 pub const pmm = @import("lib/pmm.zig");
 pub const paging = @import("platform/paging.zig");
+pub const pci = @import("platform/pci.zig");
+pub const fw_cfg = @import("platform/drivers/fw_cfg.zig");
+pub const ramfb = @import("platform/drivers/ramfb.zig");
 
 pub const puts = io_impl.puts;
 pub const log_hex = io_impl.log_hex;
@@ -54,7 +57,7 @@ pub fn panic(reason: []const u8, stacktrace: ?*std.builtin.StackTrace) noreturn 
 const Elf = @import("lib/elf.zig").Elf;
 const sabaton = @This();
 
-pub const Stivale2tag = struct {
+pub const Stivale2tag = packed struct {
   ident: u64,
   next: ?*@This(),
 };
@@ -117,12 +120,12 @@ comptime {
 
 export fn fatal_error() noreturn {
   if(comptime sabaton.safety) {
-      const error_count = asm volatile(
-        \\ MRS %[res], TPIDR_EL1
-        \\ ADD %[res], %[res], 1
-        \\ MSR TPIDR_EL1, %[res]
-        : [res] "=r" (-> u64)
-      );
+    const error_count = asm volatile(
+      \\ MRS %[res], TPIDR_EL1
+      \\ ADD %[res], %[res], 1
+      \\ MSR TPIDR_EL1, %[res]
+      : [res] "=r" (-> u64)
+    );
 
     if(error_count != 1) {
       while(true) { }
@@ -181,11 +184,7 @@ pub fn main() noreturn {
     .data = platform.get_kernel(),
   };
 
-  sabaton.puts("Verifying ELF\n");
-
   kernel_elf.init();
-
-  sabaton.puts("ELF verified\n");
 
   var kernel_header: Stivale2hdr = undefined;
   _ = vital(
@@ -206,20 +205,19 @@ pub fn main() noreturn {
   pmm.switch_state(.PageTables);
   paging_root = paging.init_paging();
   platform.map_platform(&paging_root);
-  sabaton.puts("Mapping dram\n");
   {
     const dram_base = @ptrToInt(dram.ptr);
-    sabaton.paging.map(dram_base, dram_base, dram.len, .rw, .memory, &paging_root, .CanOverlap);
-    sabaton.paging.map(dram_base + upper_half_phys_base, dram_base, dram.len, .rw, .memory, &paging_root, .CannotOverlap);
+    sabaton.paging.map(dram_base, dram_base, dram.len, .rwx, .memory, &paging_root);
+    sabaton.paging.map(dram_base + upper_half_phys_base, dram_base, dram.len, .rwx, .memory, &paging_root);
   }
-  sabaton.puts("Finished mapping dram\n");
 
   paging.apply_paging(&paging_root);
   // Check the flags in the stivale2 header
   sabaton.puts("Loading kernel into memory\n");
   kernel_elf.load(kernel_memory_pool);
 
-  sabaton.puts("Sealing PMM\n");
+  if(sabaton.debug)
+    sabaton.puts("Sealing PMM\n");
 
   pmm.switch_state(.Sealed);
 
@@ -233,8 +231,6 @@ pub fn main() noreturn {
     sabaton.puts("Starting SMP\n");
     platform.smp.init();
   }
-
-  sabaton.log_hex("Writing DRAM size: 0x", dram.len);
 
   pmm.write_dram_size(dram.len);
 
@@ -255,7 +251,7 @@ pub fn main() noreturn {
   unreachable;
 }
 
-pub export fn stivale2_smp_ready(cpu_index: usize) noreturn {
+pub fn stivale2_smp_ready(cpu_index: usize) noreturn {
   if(!@hasDecl(platform, "smp"))
     unreachable;
 
@@ -278,6 +274,7 @@ pub export fn stivale2_smp_ready(cpu_index: usize) noreturn {
 
   asm volatile(
     \\   MOV SP, %[stack]
+    \\   MOV LR, #~0
     \\   BR  %[goto]
     :
     : [stack] "r" (stack)
@@ -285,4 +282,34 @@ pub export fn stivale2_smp_ready(cpu_index: usize) noreturn {
     , [goto] "r" (goto)
   );
   unreachable;
+}
+
+pub const fb_width = 1024;
+pub const fb_height = 768;
+pub const fb_bpp = 4;
+pub const fb_pitch = fb_width * fb_bpp;
+pub const fb_bytes = fb_pitch * fb_height;
+
+var fb: packed struct {
+  tag: Stivale2tag = .{
+    .ident = 0x506461d2950408fa,
+    .next = null,
+  },
+  addr: u64 = undefined,
+  width: u16 = fb_width,
+  height: u16 = fb_height,
+  pitch: u16 = fb_pitch,
+  bpp: u16 = fb_bpp * 8,
+  mmodel: u8 = 1,
+  red_mask_size: u8 = 8,
+  red_mask_shift: u8 = 0,
+  green_mask_size: u8 = 8,
+  green_mask_shift: u8 = 8,
+  blue_mask_size: u8 = 8,
+  blue_mask_shift: u8 = 16,
+} = .{};
+
+pub fn add_framebuffer(addr: u64) void {
+  add_tag(&fb.tag);
+  fb.addr = addr;
 }
