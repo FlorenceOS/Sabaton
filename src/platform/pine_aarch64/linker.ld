@@ -4,29 +4,28 @@ OUTPUT_ARCH(aarch64)
 
 PHDRS {
   none   PT_NULL FLAGS(0);
+  blob   PT_LOAD FLAGS(7);
 }
 
-__kernel_file_loc = 0x4000000;
-__dram_base       = 0x40000000;
+__uart_base = 0x1C28000;
+__dram_base = 0x40000000;
+__pmm_base = 0;
 
 SECTIONS {
-  . = 0x40100000;
+  . = 0x40000000;
+  __blob_base = .;
   .blob : {
-    __blob_base = .;
     *(.text.entry)
     KEEP(*(.text.main))
     *(.text*)
     *(.data*)
     *(.rodata*)
     *(.bss*)
-    . = ALIGN(16);
-    __blob_end = .;
-  }
+    *(.COMMON)
+  }: blob
+  __blob_end = .;
 
-  . = ALIGN(4K);
-  __pmm_base = .;
-
-  .eh_frame : {
+  /DISCARD/ : {
     *(.eh_frame*)
   }
 }

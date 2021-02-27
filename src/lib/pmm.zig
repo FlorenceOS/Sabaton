@@ -32,7 +32,7 @@ comptime {
     \\   .8byte 0
     \\ pt_size:
     \\   .8byte 0
-    \\   .8byte 0x1000 // Reclaimable, will be 0x070c8a122cc97b24 if Sabaton tag is present in kernel
+    \\   .8byte 0x1000 // Reclaimable
     \\
     \\ // Usable region
     \\ pmm_head:
@@ -59,7 +59,7 @@ pub fn verify_transition(s: pmm_state) void {
   if(sabaton.safety and (current_state == .Sealed or (@enumToInt(current_state) + 1 != @enumToInt(s)))) {
     sabaton.puts("Unexpected pmm sate: ");
     sabaton.print_str(@tagName(s));
-    sabaton.puts("while in state: ");
+    sabaton.puts(" while in state: ");
     sabaton.print_str(@tagName(current_state));
     sabaton.putchar('\n');
     unreachable;
@@ -92,6 +92,7 @@ const purpose = enum {
   ReclaimableData,
   KernelPage,
   PageTable,
+  Hole,
 };
 
 fn verify_purpose(p: purpose) void {
@@ -106,7 +107,7 @@ fn verify_purpose(p: purpose) void {
     .Prekernel => p != .ReclaimableData,
 
     // When we're sealed we don't want to allocate anything anymore
-    .Sealed => true,
+    .Sealed => p != .Hole,
   }) {
     sabaton.puts("Allocation purpose ");
     sabaton.print_str(@tagName(p));
@@ -140,7 +141,7 @@ fn alloc_impl(num_bytes: u64, comptime aligned: bool, p: purpose) []u8 {
 //}
 
 pub fn alloc_aligned(num_bytes: u64, p: purpose) []align(0x1000) u8 {
-  return @alignCast(0x1000, @call(.{.modifier = .never_inline}, alloc_impl, .{num_bytes, true, p}));
+  return @alignCast(0x1000, alloc_impl(num_bytes, true, p));
 }
 
 pub fn write_dram_size(dram_len: u64) void {
