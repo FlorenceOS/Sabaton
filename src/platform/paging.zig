@@ -25,14 +25,18 @@ pub const Root = struct {
 };
 
 fn make_table_at(e: *pte) table_ptr {
-  if(e.* & 1 != 0) {
-    return @intToPtr(table_ptr, e.* & 0x0000FFFFFFFFF000);
-  } else {
-    const page_size = sabaton.platform.get_page_size();
-    const ret = sabaton.pmm.alloc_aligned(page_size, .PageTable);
-    e.* = @ptrToInt(ret.ptr);
-    e.* |= 1 << 63 | 0x3;
-    return @ptrCast(table_ptr, ret.ptr);
+  switch(decode(e.*, false)) {
+    .Mapping => unreachable,
+    .Table => {
+      return @intToPtr(table_ptr, e.* & 0x0000FFFFFFFFF000);  
+    },
+    .Empty => {
+      const page_size = sabaton.platform.get_page_size();
+      const ret = sabaton.pmm.alloc_aligned(page_size, .PageTable);
+      //sabaton.log_hex("Allocated new table at ", ret.ptr);
+      e.* = @ptrToInt(ret.ptr) | 1 << 63 | 3;
+      return @ptrCast(table_ptr, ret.ptr);
+    },
   }
 }
 
@@ -123,7 +127,21 @@ pub fn current_root() Root {
   };
 }
 
-pub fn map(vaddr_c: u64, paddr_c: u64, size_c: u64, perm: Perms, mt: MemoryType, in_root: ?*Root, mode: enum{CanOverlap, CannotOverlap}) void {
+const Decoded = enum {
+  Mapping,
+  Table,
+  Empty,
+};
+
+pub fn decode(e: pte, bottomlevel: bool) Decoded {
+  if(e & 1 == 0)
+    return .Empty;
+  if(bottomlevel or e & 2 == 0)
+    return .Mapping;
+  return .Table;
+}
+
+pub fn map(vaddr_c: u64, paddr_c: u64, size_c: u64, perm: Perms, mt: MemoryType, in_root: ?*Root) void {
   const page_size = sabaton.platform.get_page_size();
   var vaddr = vaddr_c;
   var paddr = paddr_c;
@@ -160,16 +178,21 @@ pub fn map(vaddr_c: u64, paddr_c: u64, size_c: u64, perm: Perms, mt: MemoryType,
     while(true) {
       const ind = get_index(vaddr, base_bits, level);
       // We can only map at this level if it's not a table
-      if(level == 0 or current_table[ind] & 2 == 0) {
-        // Heyo, we may be able to map at this level. Let's see if we can.
-        if(level == 0 or can_map(size, vaddr, paddr, current_step_size)) {
-          if(mode == .CannotOverlap and current_table[ind] != 0) {
-            sabaton.log_hex("Overlapping mapping at ", vaddr);
-            @panic("Overlap!");
+      switch(decode(current_table[ind], level == 0)) {
+        .Mapping => {
+          sabaton.log_hex("Overlapping mapping at ", vaddr);
+          sabaton.log_hex("PTE is ", current_table[ind]);
+          unreachable;
+        },
+        .Table => { }, // Just iterate to the next level
+        .Empty => {
+          // If we can map at this level, do so
+          if(can_map(size, vaddr, paddr, current_step_size)) {
+            const bits = if(level == 0) small_bits else large_bits;
+            make_mapping_at(&current_table[ind], paddr, bits);
+            break;
           }
-          const bits = if(level == 0) small_bits else large_bits;
-          make_mapping_at(&current_table[ind], paddr, bits);
-          break;
+          // Otherwise, just iterate to the next level
         }
       }
 
