@@ -37,7 +37,7 @@ memhead:
   MSR CPTR_EL2, X1
   MSR HSTR_EL2, XZR
   MOV X1, #0x300000
-  MSR CPACR_EL1, x10
+  MSR CPACR_EL1, X1
 
   // Copy page settings to EL1
   MRS X1, SCTLR_EL2
