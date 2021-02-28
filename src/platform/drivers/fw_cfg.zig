@@ -88,6 +88,14 @@ pub fn find_file(filename: []const u8) ?File {
       f.size = std.mem.bigToNative(u32, f.size);
       f.select = std.mem.bigToNative(u16, f.select);
 
+      if(sabaton.debug) {
+        sabaton.puts("fw cfg file:\n");
+        sabaton.log_hex(" size: ", f.size);
+        sabaton.puts(" filename: ");
+        sabaton.puts(@ptrCast([*:0]u8, &f.name[0]));
+        sabaton.putchar('\n');
+      }
+
       if(std.mem.eql(u8, filename, f.name[0..filename.len]) and f.name[filename.len] == 0) {
         return f;
       }
