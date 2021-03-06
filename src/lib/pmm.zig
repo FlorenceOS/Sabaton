@@ -144,7 +144,7 @@ pub fn alloc_aligned(num_bytes: u64, p: purpose) []align(0x1000) u8 {
   return @alignCast(0x1000, alloc_impl(num_bytes, true, p));
 }
 
-pub fn write_dram_size(dram_len: u64) void {
+pub fn write_dram_size(dram_end: u64) void {
   if(sabaton.safety and current_state != .Sealed) {
     sabaton.puts("Unexpected pmm sate: ");
     sabaton.print_str(@tagName(current_state));
@@ -152,7 +152,7 @@ pub fn write_dram_size(dram_len: u64) void {
     unreachable;
   }
 
-  const dram_base = sabaton.near("dram_base").read(u64);
-  const current_head = sabaton.near("pmm_head").read(u64);
-  sabaton.near("usable_size").write(dram_base + dram_len - current_head);
+  // Align the current base
+  const current_head = @ptrToInt(alloc_aligned(0, .Hole).ptr);
+  sabaton.near("usable_size").write(dram_end - current_head);
 }

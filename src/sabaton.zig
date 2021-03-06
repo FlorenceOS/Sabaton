@@ -238,7 +238,7 @@ pub fn main() noreturn {
     platform.acpi.init();
   }
 
-  pmm.write_dram_size(dram.len);
+  pmm.write_dram_size(@ptrToInt(dram.ptr) + dram.len);
 
   add_tag(&near("memmap_tag").addr(Stivale2tag)[0]);
 
