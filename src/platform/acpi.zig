@@ -63,6 +63,11 @@ fn fixup(comptime T: type, root_table: []u8, acpi_tables_c: []u8) void {
     switch(sig) {
       // Ignore root tables
       signature("RSDT"), signature("XSDT") => { },
+
+      // Nope, we don't point to this one either apparently.
+      // https://github.com/qemu/qemu/blob/d0dddab40e472ba62b5f43f11cc7dba085dabe71/hw/arm/virt-acpi-build.c#L693
+      signature("DSDT") => { },
+
       else => {
         // We add everything else
         // sabaton.log_hex("At offset ", offset);
