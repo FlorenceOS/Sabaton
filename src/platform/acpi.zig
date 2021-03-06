@@ -94,6 +94,7 @@ fn fixup_fadt(fadt: []u8, dsdt: []u8) void {
   // We have both a FADT and DSDT on ACPI >= 2, so
   // The FADT needs to point to the DSDT
   const dsdt_addr = @ptrToInt(dsdt.ptr);
+  // Offset: https://gcc.godbolt.org/z/j59fxx
   std.mem.writeInt(u64, fadt[152..][0..8], dsdt_addr, std.builtin.endian);
 }
 
