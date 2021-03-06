@@ -71,13 +71,12 @@ fn fixup(comptime T: type, root_table: []u8, acpi_tables_c: []u8) void {
             sabaton.log_hex("Root table size is ", root_table.len);
             sabaton.puts("Can't fit this table pointer! :(\n");
           }
-          break;
+        } else {
+          const ptr_bytes = root_table[offset..][0..@sizeOf(T)];
+          const table_ptr = @intCast(u32, @ptrToInt(acpi_tables.ptr));
+          std.mem.writeInt(T, ptr_bytes, table_ptr, std.builtin.endian);
+          offset += @sizeOf(T);
         }
-
-        const ptr_bytes = root_table[offset..][0..@sizeOf(T)];
-        const table_ptr = @intCast(u32, @ptrToInt(acpi_tables.ptr));
-        std.mem.writeInt(T, ptr_bytes, table_ptr, std.builtin.endian);
-        offset += @sizeOf(T);
       },
     }
     acpi_tables = acpi_tables[len..];
