@@ -46,7 +46,7 @@ fn parse_root_sdt(comptime T: type, addr: usize) !void {
   }
 }
 
-fn fixup(comptime T: type, root_table: []u8, acpi_tables_c: []u8) void {
+fn fixup_root(comptime T: type, root_table: []u8, acpi_tables_c: []u8) void {
   var acpi_tables = acpi_tables_c;
   var offset: u64 = 36;
 
@@ -90,6 +90,13 @@ fn fixup(comptime T: type, root_table: []u8, acpi_tables_c: []u8) void {
   std.mem.writeInt(u32, root_table[4..][0..4], @intCast(u32, offset), std.builtin.endian);
 }
 
+fn fixup_fadt(fadt: []u8, dsdt: []u8) void {
+  // We have both a FADT and DSDT on ACPI >= 2, so
+  // The FADT needs to point to the DSDT
+  const dsdt_addr = @ptrToInt(dsdt.ptr);
+  std.mem.writeInt(u64, fadt[152..][0..8], dsdt_addr, std.builtin.endian);
+}
+
 pub fn init(rsdp: []u8, tables_c: []u8) void {
   if(rsdp.len < @sizeOf(RSDP)) {
     if(sabaton.debug)
@@ -102,6 +109,9 @@ pub fn init(rsdp: []u8, tables_c: []u8) void {
 
   var got_root = false;
 
+  var fadt_opt: ?[]u8 = null;
+  var dsdt_opt: ?[]u8 = null;
+
   var tables = tables_c;
   while(tables.len > 8) {
     const len = std.mem.readInt(u32, tables[4..8], std.builtin.endian);
@@ -113,14 +123,16 @@ pub fn init(rsdp: []u8, tables_c: []u8) void {
         sabaton.puts("Found RSDT!\n");
         rsdp_val.rsdt_addr = @intCast(u32, @ptrToInt(table.ptr));
         got_root = true;
-        fixup(u32, table, tables_c);
+        fixup_root(u32, table, tables_c);
       },
       signature("XSDT") => {
         sabaton.puts("Found XSDT!\n");
         rsdp_val.xsdt_addr = @intCast(u64, @ptrToInt(table.ptr));
         got_root = true;
-        fixup(u64, table, tables_c);
+        fixup_root(u64, table, tables_c);
       },
+      signature("FADT") => fadt_opt = table,
+      signature("DSDT") => dsdt_opt = table,
       else => { },
     }
 
@@ -133,5 +145,13 @@ pub fn init(rsdp: []u8, tables_c: []u8) void {
       sabaton.log("RSDP: {}\n", .{rsdp_val.*});
     }
     sabaton.add_rsdp(@ptrToInt(rsdp.ptr));
+
+    if(rsdp_val.revision >= 2) {
+      if(fadt_opt) |fadt| {
+        if(dsdt_opt) |dsdt| {
+          fixup_fadt(fadt, dsdt);
+        }
+      }
+    }
   }
 }
