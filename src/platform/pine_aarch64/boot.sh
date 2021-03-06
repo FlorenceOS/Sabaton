@@ -23,7 +23,7 @@ setexpr load_addr ${load_addr} '&' fffff000
 
 echo "[SABATON] Loading your kernel"
 mw.l 40000020 ${load_addr}
-load mmc "1:9" ${load_addr} /Kernel.elf
+load mmc "1:4" ${load_addr} /Kernel.elf
 
 setexpr load_addr ${load_addr} '+' ${filesize}
 setexpr load_addr ${load_addr} '+' 00000fff
