@@ -4,6 +4,7 @@ pub const util = @import("lib/util.zig");
 pub const dtb = @import("lib/dtb.zig");
 pub const pmm = @import("lib/pmm.zig");
 
+pub const acpi = @import("platform/acpi.zig");
 pub const paging = @import("platform/paging.zig");
 pub const pci = @import("platform/pci.zig");
 pub const fw_cfg = @import("platform/drivers/fw_cfg.zig");
@@ -233,6 +234,10 @@ pub fn main() noreturn {
     platform.smp.init();
   }
 
+  if(@hasDecl(platform, "acpi")) {
+    platform.acpi.init();
+  }
+
   pmm.write_dram_size(dram.len);
 
   add_tag(&near("memmap_tag").addr(Stivale2tag)[0]);
@@ -313,4 +318,17 @@ var fb: packed struct {
 pub fn add_framebuffer(addr: u64) void {
   add_tag(&fb.tag);
   fb.addr = addr;
+}
+
+var rsdp: packed struct {
+  tag: Stivale2tag = .{
+    .ident = 0x9e1786930a375e78,
+    .next = null,
+  },
+  rsdp: u64 = undefined,
+} = .{};
+
+pub fn add_rsdp(addr: u64) void {
+  add_tag(&rsdp.tag);
+  rsdp.rsdp = addr;
 }

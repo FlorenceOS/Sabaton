@@ -3,6 +3,8 @@ pub const io = sabaton.io_impl.uart_mmio_32;
 pub const ElfType = [*]u8;
 pub const panic = sabaton.panic;
 
+const std = @import("std");
+
 pub const display = struct {
   fn try_find(comptime f: anytype, comptime name: []const u8) bool {
     const retval = f();
@@ -23,7 +25,21 @@ pub const display = struct {
   }
 };
 
-const std = @import("std");
+pub const acpi = struct {
+  pub fn init() void {
+    if(sabaton.fw_cfg.find_file("etc/acpi/tables")) |tables| {
+      if(sabaton.fw_cfg.find_file("etc/acpi/rsdp")) |rsdp| {
+        const rsdp_bytes = sabaton.pmm.alloc_aligned(rsdp.size, .Hole);
+        const table_bytes = sabaton.pmm.alloc_aligned(tables.size, .Hole);
+
+        rsdp.read(rsdp_bytes);
+        tables.read(table_bytes);
+
+        sabaton.acpi.init(rsdp_bytes, table_bytes);
+      }
+    }
+  }
+};
 
 var page_size: u64 = 0x1000;
 
