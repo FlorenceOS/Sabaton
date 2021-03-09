@@ -65,11 +65,9 @@ fn make_mapping_at(ent: *pte, paddr: u64, bits: u64) void {
 }
 
 pub fn detect_page_size() u64 {
-  var aa64mmfr0: u64 = undefined;
-
-  asm volatile(
+  var aa64mmfr0 = asm volatile(
     "MRS %[reg], ID_AA64MMFR0_EL1\n\t"
-    : [reg] "=r" (aa64mmfr0)
+    : [reg] "=r" (-> u64)
   );
 
   var psz: u64 = undefined;
