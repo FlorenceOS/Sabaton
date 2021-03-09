@@ -12,7 +12,7 @@ pub fn get_page_size() u64 {
   return 0x1000;
 }
 
-export fn _main(alt_pmm_base: u64) linksection(".text.main") noreturn {
+export fn _main() linksection(".text.main") noreturn {
   @call(.{.modifier = .always_inline}, sabaton.main, .{});
 }
 
