@@ -20,10 +20,33 @@ memhead:
   ADR X5, pmm_head
   STR X0, [X5]
 
+  // Copy page settings to EL1
+  MRS X1, SCTLR_EL2
+  MSR SCTLR_EL1, X1
+  MRS X1, TCR_EL2
+  MSR TCR_EL1, X1
+  MRS X1, MAIR_EL2
+  MSR MAIR_EL1, X1
+  MRS X1, TTBR0_EL2
+  MSR TTBR0_EL1, X1
+  MSR TTBR1_EL1, XZR
+
+  TLBI VMALLE1
+
+  BL el2_to_el1
+
+  // Stacc
+  ADR X1, __boot_stack
+  MOV SP, X1
+
+  // Fall through to main
+
+.section .text
+.global el2_to_el1
+el2_to_el1:
   // aarch64 in EL1
-  MOV X1, XZR
-  ORR X1, X1, #(1 << 31)
-  ORR X1, X1, #(1 << 1)
+  ORR X1, XZR, #(1 << 31)
+  ORR X1, X1,  #(1 << 1)
   MSR HCR_EL2, X1
 
   // Counters in EL1
@@ -39,31 +62,11 @@ memhead:
   MOV X1, #0x300000
   MSR CPACR_EL1, X1
 
-  // Copy page settings to EL1
-  MRS X1, SCTLR_EL2
-  MSR SCTLR_EL1, X1
-  MRS X1, TCR_EL2
-  MSR TCR_EL1, X1
-  MRS X1, MAIR_EL2
-  MSR MAIR_EL1, X1
-  MRS X1, TTBR0_EL2
-  MSR TTBR0_EL1, X1
-  MSR TTBR1_EL1, XZR
-
-  TLBI VMALLE1
-
   // Get the fuck out of EL2 into EL1
-  ADR X1, el1
-  MSR ELR_EL2, X1
+  MSR ELR_EL2, LR
   MOV X1, #0x3C5
   MSR SPSR_EL2, X1
   ERET
-el1:
-  // Stacc just before the dtb
-  LDR X1, dtb_loc
-  MOV SP, X1
-
-  // Fall through to main
   
 .section .data
 // Allwinner A64 user manual:

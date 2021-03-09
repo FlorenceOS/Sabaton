@@ -17,6 +17,8 @@ SECTIONS {
   .blob : {
     *(.text.entry)
     KEEP(*(.text.main))
+    *(.text.smp_stub)
+    KEEP(*(.text.smp_entry))
     *(.text*)
     *(.data*)
     *(.rodata*)
@@ -24,6 +26,9 @@ SECTIONS {
     *(.COMMON)
   }: blob
   __blob_end = .;
+  . = ALIGN(4K);
+  . += 4K;
+  __boot_stack = .;
 
   /DISCARD/ : {
     *(.eh_frame*)

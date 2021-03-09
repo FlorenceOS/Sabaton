@@ -9,7 +9,7 @@ echo "[SABATON] Loading Sabaton"
 load mmc "1:4" ${load_addr} /Sabaton.bin
 
 setexpr load_addr ${load_addr} '+' ${filesize}
-setexpr load_addr ${load_addr} '+' 00000fff
+setexpr load_addr ${load_addr} '+' 00004fff # 0x4000 bytes for stacks, 0x1000 per core
 setexpr load_addr ${load_addr} '&' fffff000
 
 echo "[SABATON] Loading DTB"
