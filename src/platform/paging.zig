@@ -268,7 +268,7 @@ pub fn apply_paging(r: *Root) void {
 
   const mair: u64 = 0
     | (0b11111111 << 0) // Normal, Write-back RW-Allocate non-transient
-    | (0b00001100 << 8) // Device, GRE
+    | (0b00000000 << 8) // Device, nGnRnE
   ;
 
   if(sabaton.debug) {
