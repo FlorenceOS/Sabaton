@@ -107,8 +107,8 @@ pub fn init_from_dtb(root: *sabaton.paging.Root) void {
   // sabaton.paging.map(bar32base, bar32base, bar32size, .rw, .mmio, root);
   // sabaton.paging.map(bar32base + sabaton.upper_half_phys_base, bar32base, bar32size, .rw, .mmio, root);
 
-  sabaton.paging.map(bar64size, bar64size, bus0size, .rw, .mmio, root);
-  sabaton.paging.map(bar64size + sabaton.upper_half_phys_base, bar64size, bar64size, .rw, .mmio, root);
+  sabaton.paging.map(bar64base, bar64size, bus0size, .rw, .mmio, root);
+  sabaton.paging.map(bar64base + sabaton.upper_half_phys_base, bar64size, bar64size, .rw, .mmio, root);
 
   _ = scan(pci_bars_callback);
 }
