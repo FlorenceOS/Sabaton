@@ -257,17 +257,14 @@ pub fn main() noreturn {
   unreachable;
 }
 
-pub fn stivale2_smp_ready(cpu_index: usize) noreturn {
-  if(!@hasDecl(platform, "smp"))
-    unreachable;
+pub fn stivale2_smp_ready(context: u64) noreturn {
+  paging.apply_paging(&paging_root);
 
-  sabaton.paging.apply_paging(&paging_root);
-
-  const smp_tag = sabaton.near("smp_tag").addr(u64);
+  const cpu_tag = @intToPtr([*]u64, context);
 
   var goto: u64 = undefined;
   while(true) {
-    goto = @atomicLoad(u64, &smp_tag[6 + cpu_index * 4 + 1], .Acquire);
+    goto = @atomicLoad(u64, &cpu_tag[2], .Acquire);
     if(goto != 0)
       break;
 
@@ -276,15 +273,13 @@ pub fn stivale2_smp_ready(cpu_index: usize) noreturn {
     );
   }
 
-  const stack = smp_tag[6 + cpu_index * 4];
-
   asm volatile(
     \\   MOV SP, %[stack]
     \\   MOV LR, #~0
     \\   BR  %[goto]
     :
-    : [stack] "r" (stack)
-    , [arg] "{X0}" (&smp_tag[5])
+    : [stack] "r" (cpu_tag[3])
+    , [arg] "{X0}" (cpu_tag)
     , [goto] "r" (goto)
   );
   unreachable;
