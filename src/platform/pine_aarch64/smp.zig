@@ -46,6 +46,7 @@ comptime {
         \\ .global smp_stub
         \\smp_stub:
         \\  BL el2_to_el1
+        \\  MSR SPSel, #0
         \\  LDR X1, [X0, #8] // Load stack
         \\  MOV SP, X1
         \\  // Fall through to smp_entry

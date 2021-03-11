@@ -36,6 +36,7 @@ memhead:
   BL el2_to_el1
 
   // Stacc
+  MSR SPSel, #0
   ADR X1, __boot_stack
   MOV SP, X1
 
