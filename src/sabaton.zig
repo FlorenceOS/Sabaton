@@ -7,6 +7,7 @@ pub const pmm = @import("lib/pmm.zig");
 pub const acpi = @import("platform/acpi.zig");
 pub const paging = @import("platform/paging.zig");
 pub const pci = @import("platform/pci.zig");
+pub const psci = @import("platform/psci.zig");
 pub const fw_cfg = @import("platform/drivers/fw_cfg.zig");
 pub const ramfb = @import("platform/drivers/ramfb.zig");
 
