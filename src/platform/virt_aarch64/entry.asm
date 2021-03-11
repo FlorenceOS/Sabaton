@@ -42,6 +42,7 @@ _start:
 
 .cont:
   // Set up an early stack
+  MSR SPSel, #0
   ADR X18, _start
   MOV SP, X18
 
