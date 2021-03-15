@@ -90,7 +90,7 @@ pub fn build_elf(b: *Builder, arch: builtin.Arch, target_name: []const u8, path_
 
   elf.addBuildOption([] const u8, "board_name", target_name);
   target(elf, arch, true);
-  elf.setBuildMode(.ReleaseSmall);
+  elf.setBuildMode(.Debug);
 
   elf.setMainPkgPath(b.fmt("{s}src/", .{path_prefix}));
   elf.setOutputDir(b.cache_root);

@@ -40,7 +40,7 @@ pub fn find(comptime node_prefix: []const u8, comptime prop_name: []const u8) ![
         const namelen = sabaton.util.strlen(name);
 
         if(sabaton.debug)
-          sabaton.log("FDT_BEGIN_NODE(\"{}\", {})\n", .{name[0..namelen], namelen});
+          sabaton.log("FDT_BEGIN_NODE(\"{s}\", {})\n", .{name[0..namelen], namelen});
 
         current_depth += 1;
         if(found_at_depth == null and namelen >= node_prefix.len) {
@@ -67,7 +67,7 @@ pub fn find(comptime node_prefix: []const u8, comptime prop_name: []const u8) ![
 
         const name = @ptrCast([*:0]u8, dtb.ptr + header.off_dt_strings.read() + nameoff);
         if(sabaton.debug)
-          sabaton.log("FDT_PROP(\"{}\"), len 0x{X}\n", .{name, len});
+          sabaton.log("FDT_PROP(\"{s}\"), len 0x{X}\n", .{name, len});
 
         if(found_at_depth) |d| {
           if(d == current_depth) {

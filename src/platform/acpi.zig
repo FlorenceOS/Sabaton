@@ -76,6 +76,7 @@ fn fixup_root(comptime T: type, root_table: []u8, acpi_tables_c: []u8) void {
           if(sabaton.debug) {
             sabaton.log_hex("Root table size is ", root_table.len);
             sabaton.puts("Can't fit this table pointer! :(\n");
+            break;
           }
         } else {
           const ptr_bytes = root_table[offset..][0..@sizeOf(T)];
