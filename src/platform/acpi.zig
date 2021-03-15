@@ -52,6 +52,7 @@ fn fixup_root(comptime T: type, root_table: []u8, acpi_tables_c: []u8) void {
 
   while(acpi_tables.len > 8) {
     const len = std.mem.readInt(u32, acpi_tables[4..8], std.builtin.endian);
+    if(len == 0) break;
     const sig = signature(acpi_tables);
 
     if(sabaton.debug) {
@@ -116,6 +117,7 @@ pub fn init(rsdp: []u8, tables_c: []u8) void {
   var tables = tables_c;
   while(tables.len > 8) {
     const len = std.mem.readInt(u32, tables[4..8], std.builtin.endian);
+    if(len == 0) break;
     const table = tables[0..len];
     const sig = signature(table);
 
