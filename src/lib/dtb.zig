@@ -18,7 +18,7 @@ const Header = packed struct {
   size_dt_struct: BE(u32),
 };
 
-pub fn find(comptime node_prefix: []const u8, comptime prop_name: []const u8) ![]u8 {
+pub fn find(node_prefix: []const u8, prop_name: []const u8) ![]u8 {
   const dtb = sabaton.platform.get_dtb();
 
   const header = @ptrCast(*Header, dtb.ptr);
