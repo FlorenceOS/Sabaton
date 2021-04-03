@@ -73,7 +73,6 @@ fn freestanding_target(elf: *std.build.LibExeObjStep, arch: builtin.Arch, do_cod
     .abi = std.Target.Abi.none,
   }));
 }
-}
 
 pub fn board_supported(arch: builtin.Arch, target_name: []const u8) bool {
   switch(arch) {
