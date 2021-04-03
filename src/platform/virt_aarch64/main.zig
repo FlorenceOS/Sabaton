@@ -5,18 +5,43 @@ pub const panic = sabaton.panic;
 
 const std = @import("std");
 
+pub const display = @import("display.zig");
+
+pub const acpi = struct {
+  pub fn init() void {
+    if(sabaton.fw_cfg.find_file("etc/acpi/tables")) |tables| {
+      if(sabaton.fw_cfg.find_file("etc/acpi/rsdp")) |rsdp| {
+        const rsdp_bytes = sabaton.pmm.alloc_aligned(rsdp.size, .Hole);
+        const table_bytes = sabaton.pmm.alloc_aligned(tables.size, .Hole);
+
+        rsdp.read(rsdp_bytes);
+        tables.read(table_bytes);
+
+        sabaton.acpi.init(rsdp_bytes, table_bytes);
+      }
+    }
+  }
+};
+
 var page_size: u64 = 0x1000;
 
 pub fn get_page_size() u64 {
   return page_size;
 }
 
-export fn _main() noreturn {
+export fn _main() linksection(".text.main") noreturn {
   page_size = sabaton.paging.detect_page_size();
+  sabaton.fw_cfg.init_from_dtb();
   @call(.{.modifier = .always_inline}, sabaton.main, .{});
 }
 
 pub fn get_kernel() [*]u8 {
+  if(sabaton.fw_cfg.find_file("opt/Sabaton/kernel")) |kernel| {
+    sabaton.log_hex("fw_cfg kernel of size ", kernel.size);
+    const kernel_bytes = sabaton.pmm.alloc_aligned(kernel.size, .ReclaimableData);
+    kernel.read(kernel_bytes);
+    return kernel_bytes.ptr;
+  }
   return sabaton.near("kernel_file_loc").read([*]u8);
 }
 
@@ -29,20 +54,14 @@ pub fn get_dram() []u8 {
 }
 
 pub fn map_platform(root: *sabaton.paging.Root) void {
-  const uart_base = sabaton.near("uart_reg").read(u64);
-  sabaton.paging.map(uart_base, uart_base, 0x1000, .rw, .mmio, root, .CannotOverlap);
-
-  const kernel_elf_base = sabaton.near("kernel_file_loc").read(u64);
-  sabaton.paging.map(kernel_elf_base, kernel_elf_base, kernel_elf_base, .r, .memory, root, .CannotOverlap);
-
-  const blob_base = @ptrToInt(sabaton.near("__blob_base").addr(u8));
-  const blob_end  = @ptrToInt(sabaton.near("__blob_end").addr(u8));
-  sabaton.paging.map(blob_base, blob_base, blob_end - blob_base, .rwx, .memory, root, .CannotOverlap);
+  sabaton.paging.map(0, 0, 1024 * 1024 * 1024, .rw, .mmio, root);
+  sabaton.paging.map(sabaton.upper_half_phys_base, 0, 1024 * 1024 * 1024, .rw, .mmio, root);
+  sabaton.pci.init_from_dtb(root);
 }
 
 // Dram size varies as you can set different amounts of RAM for your VM
 fn get_dram_size() u64 {
-  const memory_blob = sabaton.vital(sabaton.dtb.find("memory", "reg"), "Cannot find memory in dtb", false);
+  const memory_blob = sabaton.vital(sabaton.dtb.find("memory@", "reg"), "Cannot find memory in dtb", false);
   const base = std.mem.readIntBig(u64, memory_blob[0..8]);
   const size = std.mem.readIntBig(u64, memory_blob[8..16]);
 

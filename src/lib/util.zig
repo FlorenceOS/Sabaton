@@ -18,9 +18,9 @@ pub fn BigEndian(comptime T: type) type {
 pub fn vital(val: anytype, comptime context: []const u8, comptime reachable: bool) @TypeOf(val catch unreachable) {
   return val catch |err| {
     if(reachable) {
-      @call(.{.modifier = .never_inline}, sabaton.puts, .{"Fatal error: "});
-      @call(.{.modifier = .never_inline}, sabaton.print_str, .{@errorName(err)});
-      @call(.{.modifier = .never_inline}, sabaton.puts, .{" while " ++ context});
+      sabaton.puts("Fatal error: ");
+      sabaton.print_str(@errorName(err));
+      sabaton.puts(" while " ++ context);
       @panic("");
     }
     unreachable;
@@ -52,26 +52,6 @@ pub fn near(comptime name: []const u8) type {
 
     pub fn write(val: anytype) void {
       addr(@TypeOf(val))[0] = val;
-    }
-
-    pub fn read_volatile(comptime t: type) t {
-      return asm volatile(
-        "LDR %[out], " ++ name ++ "\n\t"
-        : [out] "=r" (-> t)
-        :
-        : "memory"
-      );
-    }
-
-    pub fn volatile_addr(comptime t: type) [*]volatile t {
-      return asm(
-        "ADR %[out], " ++ name ++ "\n\t"
-        : [out] "=r" (-> [*]volatile t)
-      );
-    }
-
-    pub fn write_volatile(val: anytype) void {
-      volatile_addr(@TypeOf(val))[0] = val;
     }
   };
 }

@@ -39,7 +39,7 @@ fn make_transform(b: *Builder, dep: *std.build.Step, command: [][]const u8, outp
   return transform;
 }
 
-fn target(elf: *std.build.LibExeObjStep, arch: builtin.Arch) void {
+fn cpu_features(arch: builtin.Arch, ctarget: std.zig.CrossTarget) std.zig.CrossTarget {
   var disabled_features = std.Target.Cpu.Feature.Set.empty;
   var enabled_feautres  = std.Target.Cpu.Feature.Set.empty;
 
@@ -49,33 +49,61 @@ fn target(elf: *std.build.LibExeObjStep, arch: builtin.Arch) void {
     disabled_features.addFeature(@enumToInt(features.fp_armv8));
     disabled_features.addFeature(@enumToInt(features.crypto));
     disabled_features.addFeature(@enumToInt(features.neon));
-
-    elf.code_model = .tiny;
   }
 
-  elf.setTarget(std.zig.CrossTarget {
+  return std.zig.CrossTarget {
+    .cpu_arch = ctarget.cpu_arch,
+    .os_tag = ctarget.os_tag,
+    .abi = ctarget.abi,
+    .cpu_features_sub = disabled_features,
+    .cpu_features_add = enabled_feautres,
+  };
+}
+
+fn freestanding_target(elf: *std.build.LibExeObjStep, arch: builtin.Arch, do_code_model: bool) void {
+  if(arch == .aarch64) {
+    // We don't need the code model in asm blobs
+    if(do_code_model)
+      elf.code_model = .tiny;
+  }
+
+  elf.setTarget(cpu_features(arch, .{
     .cpu_arch = arch,
     .os_tag = std.Target.Os.Tag.freestanding,
     .abi = std.Target.Abi.none,
-    .cpu_features_sub = disabled_features,
-    .cpu_features_add = enabled_feautres,
-  });
+  }));
+}
 }
 
-fn build_elf(b: *Builder, arch: builtin.Arch, target_name: []const u8) !*std.build.LibExeObjStep {
-  const elf_filename = b.fmt("Sabaton_{}_{}.elf", .{target_name, @tagName(arch)});
+pub fn board_supported(arch: builtin.Arch, target_name: []const u8) bool {
+  switch(arch) {
+    .aarch64 => {
+      if(std.mem.eql(u8, target_name, "virt"))
+        return true;
+      if(std.mem.eql(u8, target_name, "pine"))
+        return true;
+      return false;
+    },
+    else => return false,
+  }
+}
 
-  const platform_path = b.fmt("src/platform/{}_{}", .{target_name, @tagName(arch)});
+pub fn build_elf(b: *Builder, arch: builtin.Arch, target_name: []const u8, path_prefix: []const u8) !*std.build.LibExeObjStep {
+  if(!board_supported(arch, target_name)) return error.UnsupportedBoard;
 
-  const elf = b.addExecutable(elf_filename, b.fmt("{}/main.zig", .{platform_path}));
-  elf.setLinkerScriptPath(b.fmt("{}/linker.ld", .{platform_path}));
-  elf.addAssemblyFile(b.fmt("{}/entry.asm", .{platform_path}));
+  const elf_filename = b.fmt("Sabaton_{s}_{s}.elf", .{target_name, @tagName(arch)});
 
-  //elf.addBuildOption([] const u8, "source_blob_path", std.mem.concat(b.allocator, u8, &[_][]const u8{ "../../", source_blob_path } ) catch unreachable);
-  target(elf, arch);
+  const platform_path = b.fmt("{s}src/platform/{s}_{s}", .{path_prefix, target_name, @tagName(arch)});
+
+  const elf = b.addExecutable(elf_filename, b.fmt("{s}/main.zig", .{platform_path}));
+  elf.setLinkerScriptPath(b.fmt("{s}/linker.ld", .{platform_path}));
+  elf.addAssemblyFile(b.fmt("{s}/entry.S", .{platform_path}));
+
+  elf.addBuildOption([] const u8, "board_name", target_name);
+  freestanding_target(elf, arch, true);
   elf.setBuildMode(.ReleaseSmall);
 
-  elf.setMainPkgPath("src/");
+  elf.setMainPkgPath(b.fmt("{s}src/", .{path_prefix}));
   elf.setOutputDir(b.cache_root);
 
   elf.disable_stack_probing = true;
@@ -87,12 +115,30 @@ fn build_elf(b: *Builder, arch: builtin.Arch, target_name: []const u8) !*std.bui
   return elf;
 }
 
-fn blob(b: *Builder, elf: *std.build.LibExeObjStep, mode: enum{Padded, NotPadded}) !*TransformFileCommandStep {
-  const dumped_path = b.fmt("{}.bin", .{elf.getOutputPath()});
+pub fn pad_file(b: *Builder, dep: *std.build.Step, path: []const u8) !*TransformFileCommandStep {
+  const padded_path = b.fmt("{s}.pad", .{path});
+
+  const pad_step = try make_transform(b, dep,
+    &[_][]const u8 {
+      "/bin/sh", "-c",
+      b.fmt("cp {s} {s} && truncate -s 64M {s}",
+        .{path, padded_path, padded_path})
+    },
+    padded_path,
+  );
+
+  pad_step.step.dependOn(dep);
+  return pad_step;
+}
+
+const pad_mode = enum{Padded, NotPadded};
+
+fn section_blob(b: *Builder, elf: *std.build.LibExeObjStep, mode: pad_mode, section_name: []const u8) !*TransformFileCommandStep {
+  const dumped_path = b.fmt("{s}.bin", .{elf.getOutputPath()});
 
   const dump_step = try make_transform(b, &elf.step,
     &[_][]const u8 {
-      "llvm-objcopy", "-O", "binary", "--only-section", ".blob",
+      "llvm-objcopy", "-O", "binary", "--only-section", section_name,
       elf.getOutputPath(), dumped_path,
     },
     dumped_path,
@@ -100,23 +146,37 @@ fn blob(b: *Builder, elf: *std.build.LibExeObjStep, mode: enum{Padded, NotPadded
 
   dump_step.step.dependOn(&elf.step);
 
-  if(mode == .Padded) {
-    const padded_path = b.fmt("{}.pad", .{dumped_path});
-
-    const pad_step = try make_transform(b, &dump_step.step,
-      &[_][]const u8 {
-        "/bin/sh", "-c",
-        b.fmt("cp {} {} && truncate -s 64M {}",
-          .{dumped_path, padded_path, padded_path})
-      },
-      padded_path,
-    );
-
-    pad_step.step.dependOn(&dump_step.step);
-    return pad_step;
-  }
+  if(mode == .Padded)
+    return pad_file(b, &dump_step.step, dump_step.output_path);
 
   return dump_step;
+}
+
+fn blob(b: *Builder, elf: *std.build.LibExeObjStep, mode: pad_mode) !*TransformFileCommandStep {
+  return section_blob(b, elf, mode, ".blob");
+}
+
+fn assembly_blob(b: *Builder, arch: builtin.Arch, name: []const u8, asm_file: []const u8) !*TransformFileCommandStep {
+  const elf_filename = b.fmt("{s}_{s}.elf", .{name, @tagName(arch)});
+
+  const elf = b.addExecutable(elf_filename, null);
+  elf.setLinkerScriptPath("src/blob.ld");
+  elf.addAssemblyFile(asm_file);
+
+  freestanding_target(elf, arch, false);
+  elf.setBuildMode(.ReleaseSafe);
+
+  elf.setMainPkgPath("src/");
+  elf.setOutputDir(b.cache_root);
+
+  elf.install();
+
+  return blob(b, elf, .NotPadded);
+}
+
+pub fn build_blob(b: *Builder, arch: builtin.Arch, target_name: []const u8, path_prefix: []const u8) !*TransformFileCommandStep {
+  const elf = try build_elf(b, arch, target_name, path_prefix);
+  return blob(b, elf, .Padded);
 }
 
 fn qemu_aarch64(b: *Builder, board_name: []const u8, desc: []const u8, dep_elf: *std.build.LibExeObjStep) !void {
@@ -129,14 +189,14 @@ fn qemu_aarch64(b: *Builder, board_name: []const u8, desc: []const u8, dep_elf: 
       "qemu-system-aarch64",
       "-M", board_name,
       "-cpu", "cortex-a57",
-      "-drive", b.fmt("if=pflash,format=raw,file={},readonly=on", .{dep.output_path}),
-      "-drive", "if=pflash,format=raw,file=test.elf,readonly=on",
+      "-drive", b.fmt("if=pflash,format=raw,file={s},readonly=on", .{dep.output_path}),
       "-m", "4G",
       "-serial", "stdio",
       //"-S", "-s",
       "-d", "int",
       "-smp", "8",
-      "-device", "virtio-gpu-pci",
+      "-device", "ramfb",
+      "-fw_cfg", "opt/Sabaton/kernel,file=test/Flork_stivale2_aarch64",
     };
 
   const run_step = b.addSystemCommand(params);
@@ -149,32 +209,54 @@ const Device = struct {
   arch: builtin.Arch,
 };
 
+const AssemblyBlobSpec = struct {
+  name: []const u8,
+  arch: builtin.Arch,
+  path: []const u8,
+};
+
 pub fn build(b: *Builder) !void {
   //make_source_blob(b);
 
   try qemu_aarch64(b,
     "virt",
     "Run aarch64 sabaton on for the qemu virt board",
-    try build_elf(b, builtin.Arch.aarch64, "virt"),
+    try build_elf(b, builtin.Arch.aarch64, "virt", "./"),
   );
+
+  {
+    const assembly_blobs = &[_]AssemblyBlobSpec {
+      .{.path = "src/platform/pine_aarch64/identity.S", .name = "identity_pine", .arch = .aarch64},
+    };
+
+    for(assembly_blobs) |spec| {
+      const blob_file = try assembly_blob(b, spec.arch, spec.name, spec.path);
+      b.default_step.dependOn(&blob_file.step);
+    }
+  }
 
   {
     const elf_devices = &[_]Device{
     };
 
-    for(elf_devices) |dev|
-      _ = try build_elf(b, builtin.Arch.aarch64, dev.name);
+    for(elf_devices) |dev| {
+      const elf_file = try build_elf(b, builtin.Arch.aarch64, dev.name);
+      const s = b.step(dev.name, b.fmt("Build the blob for {s}", .{dev.name}));
+      s.dependOn(&elf_file.step);
+      b.default_step.dependOn(s);
+    }
   }
 
   {
     const blob_devices = &[_]Device{
       .{.name = "t8010", .arch = builtin.Arch.aarch64},
+      .{.name = "pine", .arch = builtin.Arch.aarch64},
     };
 
     for(blob_devices) |dev| {
-      const elf_file = try build_elf(b, builtin.Arch.aarch64, dev.name);
+      const elf_file = try build_elf(b, builtin.Arch.aarch64, dev.name, "./");
       const blob_file = try blob(b, elf_file, .NotPadded);
-      var s = b.step(dev.name, b.fmt("Build the blob for {}", .{dev.name}));
+      const s = b.step(dev.name, b.fmt("Build the blob for {s}", .{dev.name}));
       s.dependOn(&blob_file.step);
       b.default_step.dependOn(s);
     }
