@@ -39,7 +39,7 @@ fn make_transform(b: *Builder, dep: *std.build.Step, command: [][]const u8, outp
   return transform;
 }
 
-fn target(elf: *std.build.LibExeObjStep, arch: builtin.Arch, do_code_model: bool) void {
+fn cpu_features(arch: builtin.Arch, ctarget: std.zig.CrossTarget) std.zig.CrossTarget {
   var disabled_features = std.Target.Cpu.Feature.Set.empty;
   var enabled_feautres  = std.Target.Cpu.Feature.Set.empty;
 
@@ -49,19 +49,30 @@ fn target(elf: *std.build.LibExeObjStep, arch: builtin.Arch, do_code_model: bool
     disabled_features.addFeature(@enumToInt(features.fp_armv8));
     disabled_features.addFeature(@enumToInt(features.crypto));
     disabled_features.addFeature(@enumToInt(features.neon));
+  }
 
+  return std.zig.CrossTarget {
+    .cpu_arch = ctarget.cpu_arch,
+    .os_tag = ctarget.os_tag,
+    .abi = ctarget.abi,
+    .cpu_features_sub = disabled_features,
+    .cpu_features_add = enabled_feautres,
+  };
+}
+
+fn freestanding_target(elf: *std.build.LibExeObjStep, arch: builtin.Arch, do_code_model: bool) void {
+  if(arch == .aarch64) {
     // We don't need the code model in asm blobs
     if(do_code_model)
       elf.code_model = .tiny;
   }
 
-  elf.setTarget(std.zig.CrossTarget {
+  elf.setTarget(cpu_features(arch, .{
     .cpu_arch = arch,
     .os_tag = std.Target.Os.Tag.freestanding,
     .abi = std.Target.Abi.none,
-    .cpu_features_sub = disabled_features,
-    .cpu_features_add = enabled_feautres,
-  });
+  }));
+}
 }
 
 pub fn board_supported(arch: builtin.Arch, target_name: []const u8) bool {
@@ -89,7 +100,7 @@ pub fn build_elf(b: *Builder, arch: builtin.Arch, target_name: []const u8, path_
   elf.addAssemblyFile(b.fmt("{s}/entry.S", .{platform_path}));
 
   elf.addBuildOption([] const u8, "board_name", target_name);
-  target(elf, arch, true);
+  freestanding_target(elf, arch, true);
   elf.setBuildMode(.ReleaseSmall);
 
   elf.setMainPkgPath(b.fmt("{s}src/", .{path_prefix}));
@@ -152,7 +163,7 @@ fn assembly_blob(b: *Builder, arch: builtin.Arch, name: []const u8, asm_file: []
   elf.setLinkerScriptPath("src/blob.ld");
   elf.addAssemblyFile(asm_file);
 
-  target(elf, arch, false);
+  freestanding_target(elf, arch, false);
   elf.setBuildMode(.ReleaseSafe);
 
   elf.setMainPkgPath("src/");
