@@ -81,6 +81,8 @@ pub fn board_supported(arch: builtin.Arch, target_name: []const u8) bool {
         return true;
       if(std.mem.eql(u8, target_name, "pine"))
         return true;
+      if(std.mem.eql(u8, target_name, "t8010"))
+        return true;
       return false;
     },
     else => return false,

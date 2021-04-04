@@ -13,7 +13,7 @@ __timer_base      = __io_base + 0xF140000;
 __dram_base       = 0x800000000;
 
 SECTIONS {
-  . = 0x180000000;
+  . = 0x180018000;
   .blob : {
     __blob_base = .;
     *(.text.entry)

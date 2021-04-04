@@ -25,6 +25,7 @@ pub const debug = @import("builtin").mode == .Debug;
 pub const safety = std.debug.runtime_safety;
 
 pub const upper_half_phys_base = 0xFFFF800000000000;
+pub const get_page_size = @import("root").get_page_size;
 
 const std = @import("std");
 
