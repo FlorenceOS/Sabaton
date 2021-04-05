@@ -71,7 +71,6 @@ pub fn init() void {
     const smp_tag = sabaton.near("smp_tag").addr(sabaton.Stivale2tag);
     sabaton.add_tag(&smp_tag[0]);
 
-    var stack = sabaton.near("__boot_stack").addr(u8);
     var core: u64 = 1;
     while(core < 4) : (core += 1) {
         const ap_x0 = @ptrToInt(smp_tag) + 40 + core * 32;
