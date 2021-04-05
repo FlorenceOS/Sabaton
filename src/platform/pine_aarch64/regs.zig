@@ -1,8 +1,8 @@
-pub fn portio_cpux(offset: u16) *volatile u32 {
+pub fn portio_cpux(offset: usize) *volatile u32 {
     return @intToPtr(*volatile u32, @as(usize, 0x01C2_0800) + offset);
 }
 
-pub fn portio_cpus(offset: u16) *volatile u32 {
+pub fn portio_cpus(offset: usize) *volatile u32 {
     return @intToPtr(*volatile u32, @as(usize, 0x01F0_2C00) + offset);
 }
 
