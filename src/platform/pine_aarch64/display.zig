@@ -4,6 +4,7 @@ const regs = @import("regs.zig");
 
 const width = 720;
 const height = 1440;
+const bpp = 32;
 
 // Cant't do input/output constraints on global asm, so this is what we have to do.
 export fn tag() callconv(.Naked) void {
@@ -28,7 +29,7 @@ export fn tag() callconv(.Naked) void {
         :
         : [width] "i" (@as(usize, width))
         , [height] "i" (@as(usize, height))
-        , [bpp] "i" (@as(usize, 32))
+        , [bpp] "i" (@as(usize, bpp))
     );
 }
 
@@ -37,7 +38,8 @@ pub fn init() void {
     sabaton.add_tag(&fb_tag.addr(sabaton.Stivale2tag)[0]);
 
     // We have a 32 bit physical address space on this device, this has to work
-    const fb_addr = @intCast(u32, @ptrToInt(sabaton.pmm.alloc_aligned(width * 4 * height, .Hole).ptr));
+    const fb_bytes = width * bpp/8 * height;
+    const fb_addr = @intCast(u32, @ptrToInt(sabaton.pmm.alloc_aligned(fb_bytes, .Hole).ptr));
     fb_tag.addr(u64)[2] = @as(u64, fb_addr);
 
     // Backlight brightness PWM, we just do a digital high lol
