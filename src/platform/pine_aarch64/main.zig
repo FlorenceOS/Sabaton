@@ -7,6 +7,8 @@ pub const display = @import("display.zig");
 pub const smp = @import("smp.zig");
 pub const timer = @import("timer.zig");
 
+const led = @import("led.zig");
+
 // We know the page size is 0x1000
 pub fn get_page_size() u64 {
   return 0x1000;
@@ -90,7 +92,20 @@ fn reset_devices() void {
 export fn _main() linksection(".text.main") noreturn {
   @call(.{.modifier = .always_inline}, clocks_init, .{});
   @call(.{.modifier = .always_inline}, reset_devices, .{});
+  @call(.{.modifier = .always_inline}, led.configure_led, .{});
+  // Orange
+  led.output(.{.green = true, .red = true, .blue = false});
   @call(.{.modifier = .always_inline}, sabaton.main, .{});
+}
+
+pub fn panic_hook() void {
+  // Red
+  led.output(.{.green = false, .red = true, .blue = false});
+}
+
+pub fn launch_kernel_hook() void {
+  // Blue
+  led.output(.{.green = false, .red = false, .blue = true});
 }
 
 pub fn get_kernel() ElfType {
