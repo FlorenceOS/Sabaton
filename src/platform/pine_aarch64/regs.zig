@@ -8,14 +8,14 @@ pub fn portio_cpus(offset: u16) *volatile u32 {
 
 fn verify_port_pin(comptime port: u8, comptime pin: u5) void {
     switch(port) {
-        'B', 'b' => if(pin >= 10) @compileError("Pin out of range!"),
-        'C', 'c' => if(pin >= 17) @compileError("Pin out of range!"),
-        'D', 'd' => if(pin >= 25) @compileError("Pin out of range!"),
-        'E', 'e' => if(pin >= 18) @compileError("Pin out of range!"),
-        'F', 'f' => if(pin >= 7)  @compileError("Pin out of range!"),
-        'G', 'g' => if(pin >= 14) @compileError("Pin out of range!"),
-        'H', 'h' => if(pin >= 12) @compileError("Pin out of range!"),
-        'L', 'l' => if(pin >= 13) @compileError("Pin out of range!"),
+        'B' => if(pin >= 10) @compileError("Pin out of range!"),
+        'C' => if(pin >= 17) @compileError("Pin out of range!"),
+        'D' => if(pin >= 25) @compileError("Pin out of range!"),
+        'E' => if(pin >= 18) @compileError("Pin out of range!"),
+        'F' => if(pin >= 7)  @compileError("Pin out of range!"),
+        'G' => if(pin >= 14) @compileError("Pin out of range!"),
+        'H' => if(pin >= 12) @compileError("Pin out of range!"),
+        'L' => if(pin >= 13) @compileError("Pin out of range!"),
         else => @compileError("Unknown port!"),
     }
 }
@@ -23,28 +23,28 @@ fn verify_port_pin(comptime port: u8, comptime pin: u5) void {
 fn get_config(comptime port: u8, comptime pin: u5) *volatile u32 {
     const offset = @as(u16, @divTrunc(pin, 8) * 4);
     return switch(port) {
-        'B', 'b' => portio_cpux(0x0024 + offset),
-        'C', 'c' => portio_cpux(0x0048 + offset),
-        'D', 'd' => portio_cpux(0x006C + offset),
-        'E', 'e' => portio_cpux(0x0090 + offset),
-        'F', 'f' => portio_cpux(0x00B4 + offset),
-        'G', 'g' => portio_cpux(0x00D8 + offset),
-        'H', 'h' => portio_cpux(0x00FC + offset),
-        'L', 'l' => portio_cpus(0x0000 + offset),
+        'B' => portio_cpux(0x0024 + offset),
+        'C' => portio_cpux(0x0048 + offset),
+        'D' => portio_cpux(0x006C + offset),
+        'E' => portio_cpux(0x0090 + offset),
+        'F' => portio_cpux(0x00B4 + offset),
+        'G' => portio_cpux(0x00D8 + offset),
+        'H' => portio_cpux(0x00FC + offset),
+        'L' => portio_cpus(0x0000 + offset),
         else => @compileError("Unknown port!"),
     };
 }
 
 fn get_data(comptime port: u8) *volatile u32 {
     return switch(port) {
-        'B', 'b' => portio_cpux(0x0034),
-        'C', 'c' => portio_cpux(0x0058),
-        'D', 'd' => portio_cpux(0x007C),
-        'E', 'e' => portio_cpux(0x00A0),
-        'F', 'f' => portio_cpux(0x00C4),
-        'G', 'g' => portio_cpux(0x00E8),
-        'H', 'h' => portio_cpux(0x010C),
-        'L', 'l' => portio_cpus(0x0010),
+        'B' => portio_cpux(0x0034),
+        'C' => portio_cpux(0x0058),
+        'D' => portio_cpux(0x007C),
+        'E' => portio_cpux(0x00A0),
+        'F' => portio_cpux(0x00C4),
+        'G' => portio_cpux(0x00E8),
+        'H' => portio_cpux(0x010C),
+        'L' => portio_cpus(0x0010),
         else => @compileError("Unknown port!"),
     };
 }
