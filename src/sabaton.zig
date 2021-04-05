@@ -29,6 +29,8 @@ pub const upper_half_phys_base = 0xFFFF800000000000;
 const std = @import("std");
 
 pub fn panic(reason: []const u8, stacktrace: ?*std.builtin.StackTrace) noreturn {
+  if(@hasDecl(platform, "panic_hook"))
+    platform.panic_hook();
   puts("PANIC!");
   if(reason.len != 0) {
     puts(" Reason: ");
@@ -242,6 +244,9 @@ pub fn main() noreturn {
   pmm.write_dram_size(@ptrToInt(dram.ptr) + dram.len);
 
   add_tag(&near("memmap_tag").addr(Stivale2tag)[0]);
+
+  if(@hasDecl(platform, "launch_kernel_hook"))
+    platform.launch_kernel_hook();
 
   sabaton.puts("Entering kernel...\n");
 
