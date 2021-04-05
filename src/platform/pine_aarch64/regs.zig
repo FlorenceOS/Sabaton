@@ -78,7 +78,7 @@ pub fn write_port(comptime port: u8, comptime pin: u5, value: bool) void {
     }
 
     const curr_bit: u32 = 1 << pin;
-    const d = get_data(port);
+    const d = comptime get_data(port);
     if(value) {
         d.* |= curr_bit;
     } else {
@@ -91,6 +91,6 @@ pub fn read_port(comptime port: u8, comptime pin: u5) bool {
         verify_port_pin(port, pin);
     }
 
-    const d = get_data(port);
+    const d = comptime get_data(port);
     return (d.* & (1 << pin)) != 0;
 }
