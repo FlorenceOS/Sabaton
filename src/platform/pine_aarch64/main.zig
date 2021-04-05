@@ -17,10 +17,7 @@ fn ccu(offset: u16) *volatile u32 {
 }
 
 fn wait_stable(pll_addr: *volatile u32) void {
-  while((pll_addr.* & (1 << 28)) == 0) {
-    sabaton.log_hex("Waiting for PLL @", pll_addr);
-  }
-  sabaton.log_hex("Alive: PLL @", pll_addr);
+  while((pll_addr.* & (1 << 28)) == 0) { }
 }
 
 fn init_pll(offset: u16, pll_value: u32) void {
@@ -32,7 +29,6 @@ fn init_pll(offset: u16, pll_value: u32) void {
 fn clocks_init() void {
   // Cock and ball torture?
   // Clock and PLL torture.
-  //init_pll(0x0000, 0x80001300); // PLL_CPUX
   init_pll(0x0010, 0x83001801); // PLL_VIDEO0
   init_pll(0x0028, 0x80041811); // PLL_PERIPH0
   init_pll(0x0040, 0x80C0041A); // PLL_MIPI
@@ -59,12 +55,6 @@ fn clocks_init() void {
   ccu(0x0168).* = 0x00008001; // MIPI_DSI_CLK_REG
 
   ccu(0x0224).* = 0x10040000; // PLL_AUDIO_BIAS_REG
-  // 0x0228 0x10100000
-  // 0x022C 0x10100000
-  // 0x0234 0x10100010
-  // 0x0238 0x10100000
-  // 0x023C 0x10100000
-  // 0x0240 0xF8100400
 }
 
 fn reset_devices() void {
@@ -90,14 +80,11 @@ fn reset_devices() void {
     | (1 << 3) // TCON0
   ;
 
-
-  sabaton.puts("Resetting devices...\n");
   ccu(0x02C0).* &= ~reg0_devs;
   ccu(0x02C4).* &= ~reg1_devs;
 
   ccu(0x02C0).* |= reg0_devs;
   ccu(0x02C4).* |= reg1_devs;
-  sabaton.puts("Devices reset!\n");
 }
 
 export fn _main() linksection(".text.main") noreturn {
