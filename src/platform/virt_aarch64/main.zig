@@ -23,6 +23,12 @@ pub const acpi = struct {
   }
 };
 
+pub const smp = struct {
+  pub fn init() void {
+    sabaton.dtb.psci_smp(.HVC);
+  }
+};
+
 var page_size: u64 = 0x1000;
 
 pub fn get_page_size() u64 {
