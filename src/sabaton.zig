@@ -3,6 +3,7 @@ pub const io_impl = @import("io/io.zig");
 pub const util = @import("lib/util.zig");
 pub const dtb = @import("lib/dtb.zig");
 pub const pmm = @import("lib/pmm.zig");
+pub const stivale = @import("lib/stivale.zig");
 
 pub const acpi = @import("platform/acpi.zig");
 pub const paging = @import("platform/paging.zig");
@@ -266,11 +267,11 @@ pub fn main() noreturn {
 pub fn stivale2_smp_ready(context: u64) noreturn {
   paging.apply_paging(&paging_root);
 
-  const cpu_tag = @intToPtr([*]u64, context);
+  const cpu_tag = @intToPtr(*stivale.SMPTagEntry, context);
 
   var goto: u64 = undefined;
   while(true) {
-    goto = @atomicLoad(u64, &cpu_tag[2], .Acquire);
+    goto = @atomicLoad(u64, &cpu_tag.goto, .Acquire);
     if(goto != 0)
       break;
 
@@ -279,14 +280,16 @@ pub fn stivale2_smp_ready(context: u64) noreturn {
     );
   }
 
+  asm volatile("DSB SY\n" ::: "memory");
+
   asm volatile(
-    \\   MOV SP, %[stack]
     \\   MOV LR, #~0
     \\   BR  %[goto]
     :
-    : [stack] "r" (cpu_tag[3])
+    : [stack] "{SP}" (cpu_tag.stack)
     , [arg] "{X0}" (cpu_tag)
     , [goto] "r" (goto)
+    : "memory"
   );
   unreachable;
 }
