@@ -135,7 +135,7 @@ pub fn init(rsdp: []u8, tables_c: []u8) void {
         got_root = true;
         fixup_root(u64, table, tables_c);
       },
-      signature("FADT") => fadt_opt = table,
+      signature("FACP") => fadt_opt = table,
       signature("DSDT") => dsdt_opt = table,
       else => { },
     }
