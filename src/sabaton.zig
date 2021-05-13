@@ -283,10 +283,12 @@ pub fn stivale2_smp_ready(context: u64) noreturn {
   asm volatile("DSB SY\n" ::: "memory");
 
   asm volatile(
+    \\   MSR SPSel, #0
+    \\   MOV SP, %[stack]
     \\   MOV LR, #~0
     \\   BR  %[goto]
     :
-    : [stack] "{SP}" (cpu_tag.stack)
+    : [stack] "r" (cpu_tag.stack)
     , [arg] "{X0}" (cpu_tag)
     , [goto] "r" (goto)
     : "memory"
