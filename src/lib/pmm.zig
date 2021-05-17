@@ -79,7 +79,7 @@ pub fn switch_state(dram: usize, new_state: pmm_state) void {
   
   const eff_idx = @as(usize, @enumToInt(current_state)) * 3;
   const current_entry = sabaton.near("dram_base").addr(u64);
-  current_entry[eff_idx + 0] = dram;
+  
   // Size = head - base
   current_entry[eff_idx + 1] = current_base - current_entry[eff_idx + 0];
   // next_base = head

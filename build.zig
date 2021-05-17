@@ -153,22 +153,6 @@ fn section_blob(b: *Builder, elf: *std.build.LibExeObjStep, mode: pad_mode, sect
   return dump_step;
 }
 
-fn pi3_kernel8(b: *Builder, elf: *std.build.LibExeObjStep) !*TransformFileCommandStep {
-  const dumped_path = b.fmt("{s}.bin", .{elf.getOutputPath()});
-
-  const dump_step = try make_transform(b, &elf.step,
-    &[_][]const u8 {
-      "llvm-objcopy", "-O", "binary",
-      elf.getOutputPath(), dumped_path,
-    },
-    dumped_path,
-  );
-
-  dump_step.step.dependOn(&elf.step);
-
-  return dump_step;
-}
-
 fn blob(b: *Builder, elf: *std.build.LibExeObjStep, mode: pad_mode) !*TransformFileCommandStep {
   return section_blob(b, elf, mode, ".blob");
 }
@@ -194,11 +178,6 @@ fn assembly_blob(b: *Builder, arch: builtin.Arch, name: []const u8, asm_file: []
 pub fn build_blob(b: *Builder, arch: builtin.Arch, target_name: []const u8, path_prefix: []const u8) !*TransformFileCommandStep {
   const elf = try build_elf(b, arch, target_name, path_prefix);
   return blob(b, elf, .Padded);
-}
-
-pub fn build_pi3_kernel8(b: *Builder, arch: builtin.Arch, target_name: []const u8, path_prefix: []const u8) !*TransformFileCommandStep {
-  const elf = try build_elf(b, arch, target_name, path_prefix);
-  return pi3_kernel8(b, elf);
 }
 
 fn qemu_aarch64(b: *Builder, board_name: []const u8, desc: []const u8, dep_elf: *std.build.LibExeObjStep) !void {
@@ -229,7 +208,7 @@ fn qemu_aarch64(b: *Builder, board_name: []const u8, desc: []const u8, dep_elf: 
 fn qemu_pi_aarch64(b: *Builder, desc: []const u8, dep_elf: *std.build.LibExeObjStep) !void {
   const command_step = b.step("pi3", desc);
 
-  const dep = try pi3_kernel8(b, dep_elf);
+  const dep = try blob(b, dep_elf, .NotPadded);
 
   const params =
     &[_][]const u8 {
