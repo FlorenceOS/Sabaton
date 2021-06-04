@@ -25,6 +25,9 @@ pub const io = platform.io;
 pub const debug = @import("builtin").mode == .Debug;
 pub const safety = std.debug.runtime_safety;
 
+pub const arch = if(@hasField(std.builtin, "arch")) std.builtin.arch else std.Target.current.cpu.arch;
+pub const endian = if(@hasField(std.builtin, "endian")) std.builtin.endian else arch.endian();
+
 pub const upper_half_phys_base = 0xFFFF800000000000;
 
 const std = @import("std");

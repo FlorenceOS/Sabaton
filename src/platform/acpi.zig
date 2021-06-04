@@ -14,7 +14,7 @@ const RSDP = packed struct {
 };
 
 fn signature(name: []const u8) u32 {
-  return std.mem.readInt(u32, name[0..4], std.builtin.endian);
+  return std.mem.readInt(u32, name[0..4], sabaton.endian);
 }
 
 fn print_sig(table: []const u8) void {
@@ -42,7 +42,7 @@ fn parse_root_sdt(comptime T: type, addr: usize) !void {
   var offset: u64 = 36;
 
   while(offset + @sizeOf(T) <= sdt.len): (offset += @sizeOf(T)) {
-    try parse_sdt(std.mem.readInt(T, sdt.to_slice()[offset..][0..@sizeOf(T)], builtin.endian));
+    try parse_sdt(std.mem.readInt(T, sdt.to_slice()[offset..][0..@sizeOf(T)], sabaton.endian));
   }
 }
 
@@ -51,7 +51,7 @@ fn fixup_root(comptime T: type, root_table: []u8, acpi_tables_c: []u8) void {
   var offset: u64 = 36;
 
   while(acpi_tables.len > 8) {
-    const len = std.mem.readInt(u32, acpi_tables[4..8], std.builtin.endian);
+    const len = std.mem.readInt(u32, acpi_tables[4..8], sabaton.endian);
     if(len == 0) break;
     const sig = signature(acpi_tables);
 
@@ -81,7 +81,7 @@ fn fixup_root(comptime T: type, root_table: []u8, acpi_tables_c: []u8) void {
         } else {
           const ptr_bytes = root_table[offset..][0..@sizeOf(T)];
           const table_ptr = @intCast(u32, @ptrToInt(acpi_tables.ptr));
-          std.mem.writeInt(T, ptr_bytes, table_ptr, std.builtin.endian);
+          std.mem.writeInt(T, ptr_bytes, table_ptr, sabaton.endian);
           offset += @sizeOf(T);
         }
       },
@@ -89,7 +89,7 @@ fn fixup_root(comptime T: type, root_table: []u8, acpi_tables_c: []u8) void {
     acpi_tables = acpi_tables[len..];
   }
 
-  std.mem.writeInt(u32, root_table[4..][0..4], @intCast(u32, offset), std.builtin.endian);
+  std.mem.writeInt(u32, root_table[4..][0..4], @intCast(u32, offset), sabaton.endian);
 }
 
 fn fixup_fadt(fadt: []u8, dsdt: []u8) void {
@@ -119,7 +119,7 @@ pub fn init(rsdp: []u8, tables_c: []u8) void {
 
   var tables = tables_c;
   while(tables.len > 8) {
-    const len = std.mem.readInt(u32, tables[4..8], std.builtin.endian);
+    const len = std.mem.readInt(u32, tables[4..8], sabaton.endian);
     if(len == 0) break;
     const table = tables[0..len];
     const sig = signature(table);
