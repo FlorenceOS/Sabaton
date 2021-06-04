@@ -3,6 +3,8 @@ const Builder = std.build.Builder;
 const builtin = std.builtin;
 const assert = std.debug.assert;
 
+const Arch = if(@hasField(builtin, "Arch")) builtin.Arch else std.Target.Cpu.Arch;
+
 // var source_blob: *std.build.RunStep = undefined;
 // var source_blob_path: []u8 = undefined;
 
@@ -39,7 +41,7 @@ fn make_transform(b: *Builder, dep: *std.build.Step, command: [][]const u8, outp
   return transform;
 }
 
-fn cpu_features(arch: builtin.Arch, ctarget: std.zig.CrossTarget) std.zig.CrossTarget {
+fn cpu_features(arch: Arch, ctarget: std.zig.CrossTarget) std.zig.CrossTarget {
   var disabled_features = std.Target.Cpu.Feature.Set.empty;
   var enabled_feautres  = std.Target.Cpu.Feature.Set.empty;
 
@@ -60,7 +62,7 @@ fn cpu_features(arch: builtin.Arch, ctarget: std.zig.CrossTarget) std.zig.CrossT
   };
 }
 
-fn freestanding_target(elf: *std.build.LibExeObjStep, arch: builtin.Arch, do_code_model: bool) void {
+fn freestanding_target(elf: *std.build.LibExeObjStep, arch: Arch, do_code_model: bool) void {
   if(arch == .aarch64) {
     // We don't need the code model in asm blobs
     if(do_code_model)
@@ -74,7 +76,7 @@ fn freestanding_target(elf: *std.build.LibExeObjStep, arch: builtin.Arch, do_cod
   }));
 }
 
-pub fn board_supported(arch: builtin.Arch, target_name: []const u8) bool {
+pub fn board_supported(arch: Arch, target_name: []const u8) bool {
   switch(arch) {
     .aarch64 => {
       if(std.mem.eql(u8, target_name, "virt"))
@@ -87,7 +89,7 @@ pub fn board_supported(arch: builtin.Arch, target_name: []const u8) bool {
   }
 }
 
-pub fn build_elf(b: *Builder, arch: builtin.Arch, target_name: []const u8, path_prefix: []const u8) !*std.build.LibExeObjStep {
+pub fn build_elf(b: *Builder, arch: Arch, target_name: []const u8, path_prefix: []const u8) !*std.build.LibExeObjStep {
   if(!board_supported(arch, target_name)) return error.UnsupportedBoard;
 
   const elf_filename = b.fmt("Sabaton_{s}_{s}.elf", .{target_name, @tagName(arch)});
@@ -155,7 +157,7 @@ fn blob(b: *Builder, elf: *std.build.LibExeObjStep, mode: pad_mode) !*TransformF
   return section_blob(b, elf, mode, ".blob");
 }
 
-fn assembly_blob(b: *Builder, arch: builtin.Arch, name: []const u8, asm_file: []const u8) !*TransformFileCommandStep {
+fn assembly_blob(b: *Builder, arch: Arch, name: []const u8, asm_file: []const u8) !*TransformFileCommandStep {
   const elf_filename = b.fmt("{s}_{s}.elf", .{name, @tagName(arch)});
 
   const elf = b.addExecutable(elf_filename, null);
@@ -173,7 +175,7 @@ fn assembly_blob(b: *Builder, arch: builtin.Arch, name: []const u8, asm_file: []
   return blob(b, elf, .NotPadded);
 }
 
-pub fn build_blob(b: *Builder, arch: builtin.Arch, target_name: []const u8, path_prefix: []const u8) !*TransformFileCommandStep {
+pub fn build_blob(b: *Builder, arch: Arch, target_name: []const u8, path_prefix: []const u8) !*TransformFileCommandStep {
   const elf = try build_elf(b, arch, target_name, path_prefix);
   return blob(b, elf, .Padded);
 }
@@ -205,12 +207,12 @@ fn qemu_aarch64(b: *Builder, board_name: []const u8, desc: []const u8, dep_elf: 
 
 const Device = struct {
   name: []const u8,
-  arch: builtin.Arch,
+  arch: Arch,
 };
 
 const AssemblyBlobSpec = struct {
   name: []const u8,
-  arch: builtin.Arch,
+  arch: Arch,
   path: []const u8,
 };
 
@@ -220,7 +222,7 @@ pub fn build(b: *Builder) !void {
   try qemu_aarch64(b,
     "virt",
     "Run aarch64 sabaton on for the qemu virt board",
-    try build_elf(b, builtin.Arch.aarch64, "virt", "./"),
+    try build_elf(b, .aarch64, "virt", "./"),
   );
 
   {
@@ -239,7 +241,7 @@ pub fn build(b: *Builder) !void {
     };
 
     for(elf_devices) |dev| {
-      const elf_file = try build_elf(b, builtin.Arch.aarch64, dev.name);
+      const elf_file = try build_elf(b, .aarch64, dev.name);
       const s = b.step(dev.name, b.fmt("Build the blob for {s}", .{dev.name}));
       s.dependOn(&elf_file.step);
       b.default_step.dependOn(s);
@@ -248,11 +250,11 @@ pub fn build(b: *Builder) !void {
 
   {
     const blob_devices = &[_]Device{
-      .{.name = "pine", .arch = builtin.Arch.aarch64},
+      .{.name = "pine", .arch = .aarch64},
     };
 
     for(blob_devices) |dev| {
-      const elf_file = try build_elf(b, builtin.Arch.aarch64, dev.name, "./");
+      const elf_file = try build_elf(b, .aarch64, dev.name, "./");
       const blob_file = try blob(b, elf_file, .NotPadded);
       const s = b.step(dev.name, b.fmt("Build the blob for {s}", .{dev.name}));
       s.dependOn(&blob_file.step);
@@ -263,6 +265,6 @@ pub fn build(b: *Builder) !void {
   // qemu_riscv(b,
   //   "virt",
   //   "Run riscv64 sabaton on for the qemu virt board",
-  //   build_elf(b, builtin.Arch.riscv64, "virt"),
+  //   build_elf(b, .riscv64, "virt"),
   // );
 }
