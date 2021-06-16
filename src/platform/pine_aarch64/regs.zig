@@ -1,11 +1,47 @@
-pub fn portio_cpux(offset: usize) *volatile u32 {
-    return @intToPtr(*volatile u32, @as(usize, 0x01C2_0800) + offset);
+// Register base addresses
+fn register_base(comptime base: usize) fn(offset: usize) *volatile u32 {
+    return struct {
+        fn f(offset: usize) *volatile u32 {
+            return @intToPtr(*volatile u32, comptime base + offset);
+        }
+    }.f;
 }
 
-pub fn portio_cpus(offset: usize) *volatile u32 {
-    return @intToPtr(*volatile u32, @as(usize, 0x01F0_2C00) + offset);
+pub const portio_cpux = register_base(0x01C2_0800);
+pub const portio_cpus = register_base(0x01F0_2C00);
+pub const tcon0       = register_base(0x01C0_C000);
+pub const de          = register_base(0x0100_0000);
+pub const mipi_dsi    = register_base(0x01CA_0000);
+pub const rsb         = register_base(0x01F0_3400);
+pub const ccu         = register_base(0x01C2_0000);
+pub const prcm        = register_base(0x01F0_1400);
+pub const pio         = register_base(0x01F0_2C00);
+
+// Register collection offsets
+fn register_offset(comptime base: anytype, comptime regs_offset: usize) fn(offset: usize) *volatile u32 {
+    return struct {
+        fn f(offset: usize) *volatile u32 {
+            return base(comptime regs_offset + offset);
+        }
+    }.f;
 }
 
+pub const de_rt_mixer = register_offset(de,          0x0010_0000);
+pub const de_bld      = register_offset(de_rt_mixer, 0x0000_1000);
+pub const de_olv_ui   = register_offset(de_rt_mixer, 0x0000_3000);
+
+// Extra PLL functionality
+pub fn wait_stable(pll_addr: *volatile u32) void {
+  while((pll_addr.* & (1 << 28)) == 0) { }
+}
+
+pub fn init_pll(offset: usize, pll_value: u32) void {
+  const reg = ccu(offset);
+  reg.* = pll_value;
+  wait_stable(reg);
+}
+
+// GPIO
 fn verify_port_pin(comptime port: u8, comptime pin: u5) void {
     switch(port) {
         'B' => if(pin >= 10) @compileError("Pin out of range!"),
@@ -94,3 +130,14 @@ pub fn read_port(comptime port: u8, comptime pin: u5) bool {
     const d = comptime get_data(port);
     return (d.* & (1 << pin)) != 0;
 }
+
+    // {
+    //     // PH configure register 1
+    //     const ph = regs.portio(0x100);
+    //     sabaton.log_hex("PHCR1: ", ph.*);
+    //     // Make pin 8 output
+    //     ph.* = (ph.* & ~@as(u32, 0x7)) | 0b001;
+    // }
+    // // Enable output PH8
+    // portio(0x10C).* |= (1 << 8);
+    // sabaton.puts("Output on PH8 active\n");

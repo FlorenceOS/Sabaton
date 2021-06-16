@@ -5,7 +5,7 @@ pub const panic = sabaton.panic;
 
 pub const display = @import("display.zig");
 pub const smp = @import("smp.zig");
-pub const timer = @import("timer.zig");
+pub const timer = @import("../timer.zig");
 
 const led = @import("led.zig");
 
@@ -14,32 +14,19 @@ pub fn get_page_size() u64 {
   return 0x1000;
 }
 
-fn ccu(offset: u16) *volatile u32 {
-  return @intToPtr(*volatile u32, @as(usize, 0x01C2_0000) + offset);
-}
-
-fn wait_stable(pll_addr: *volatile u32) void {
-  while((pll_addr.* & (1 << 28)) == 0) { }
-}
-
-fn init_pll(offset: u16, pll_value: u32) void {
-  const reg = ccu(offset);
-  reg.* = pll_value;
-  wait_stable(reg);
-}
-
 fn clocks_init() void {
   // Cock and ball torture?
   // Clock and PLL torture.
   init_pll(0x0010, 0x83001801); // PLL_VIDEO0
   init_pll(0x0028, 0x80041811); // PLL_PERIPH0
-  init_pll(0x0040, 0x80C0041A); // PLL_MIPI
   init_pll(0x0048, 0x83006207); // PLL_DE
+  ccu(0x0040).* = 0x00C00000;
+  init_pll(0x0040, 0x80C00418); // PLL_MIPI
 
   // Cock gating registers?
   // Clock gating registers.
   ccu(0x0060).* = 0x33800040; // BUS_CLK_GATING_REG0
-  ccu(0x0064).* = 0x00201818; // BUS_CLK_GATING_REG1
+  ccu(0x0064).* = 0x0020181A; // BUS_CLK_GATING_REG1
   ccu(0x0068).* = 0x00000020; // BUS_CLK_GATING_REG2
   ccu(0x006C).* = 0x00010000; // BUS_CLK_GATING_REG3
   //ccu(0x0070).* = 0x00000000; // BUS_CLK_GATING_REG4
@@ -56,7 +43,19 @@ fn clocks_init() void {
   ccu(0x0154).* = 0x80000000; // HDMI_SLOW_CLK_REG
   ccu(0x0168).* = 0x00008001; // MIPI_DSI_CLK_REG
 
-  ccu(0x0224).* = 0x10040000; // PLL_AUDIO_BIAS_REG
+  //ccu(0x0224).* = 0x10040000; // PLL_AUDIO_BIAS_REG
+
+  ccu(0x021C).* = 0x10100010;
+  ccu(0x0224).* = 0x10040000;
+  ccu(0x0228).* = 0x10100000;
+  ccu(0x022C).* = 0x10100000;
+  ccu(0x0234).* = 0x10100010;
+  ccu(0x0238).* = 0x10100000;
+  ccu(0x023C).* = 0x10100000;
+  ccu(0x0240).* = 0xF8100400;
+  ccu(0x0244).* = 0x10100000;
+  ccu(0x0248).* = 0x10100000;
+  ccu(0x0270).* = 0x8A002005;
 }
 
 fn reset_devices() void {
@@ -90,8 +89,10 @@ fn reset_devices() void {
 }
 
 export fn _main() linksection(".text.main") noreturn {
-  @call(.{.modifier = .always_inline}, clocks_init, .{});
-  @call(.{.modifier = .always_inline}, reset_devices, .{});
+  // @call(.{.modifier = .always_inline}, clocks_init, .{});
+  // @call(.{.modifier = .always_inline}, reset_devices, .{});
+  // ccu(0x0320).* = 0x00001FFF;
+  @call(.{.modifier = .always_inline}, @import("pmic.zig").init, .{});
   @call(.{.modifier = .always_inline}, led.configure_led, .{});
   // Orange
   led.output(.{.green = true, .red = true, .blue = false});
