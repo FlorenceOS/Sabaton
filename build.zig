@@ -103,6 +103,8 @@ pub fn build_elf(b: *Builder, arch: Arch, target_name: []const u8, path_prefix: 
   elf.addBuildOption([] const u8, "board_name", target_name);
   freestanding_target(elf, arch, true);
   elf.setBuildMode(.ReleaseSmall);
+  if (@hasField(@TypeOf(elf.*), "want_lto"))
+    elf.want_lto = false;
 
   elf.setMainPkgPath(b.fmt("{s}src/", .{path_prefix}));
   elf.setOutputDir(b.cache_root);
