@@ -1,18 +1,12 @@
 comptime {
-  asm(
+  asm (
     \\.extern __pmm_base
     \\.extern __dram_base
     \\
     \\.global dram_base
-    \\.global memmap_tag
     \\.global pmm_head
     \\
-    \\ .section .data
-    \\ memmap_tag:
-    \\   .8byte 0x2187F79E8612DE07
-    \\   .8byte 0 // Next ptr
-    \\   .8byte 4 // Entries
-    \\
+    \\ .section .data.memmap
     \\ // Prekernel reclaimable
     \\ dram_base:
     \\   .8byte __dram_base
