@@ -31,7 +31,7 @@ fn make_transform(b: *Builder, dep: *std.build.Step, command: [][]const u8, outp
   const transform = try b.allocator.create(TransformFileCommandStep);
 
   transform.output_path = output_path;
-  transform.step = std.build.Step.init(.Custom, "", b.allocator, TransformFileCommandStep.run_command);
+  transform.step = std.build.Step.init(.custom, "", b.allocator, TransformFileCommandStep.run_command);
 
   const command_step = b.addSystemCommand(command);
 
@@ -97,7 +97,7 @@ pub fn build_elf(b: *Builder, arch: Arch, target_name: []const u8, path_prefix: 
   const platform_path = b.fmt("{s}src/platform/{s}_{s}", .{path_prefix, target_name, @tagName(arch)});
 
   const elf = b.addExecutable(elf_filename, b.fmt("{s}/main.zig", .{platform_path}));
-  elf.setLinkerScriptPath(b.fmt("{s}/linker.ld", .{platform_path}));
+  elf.setLinkerScriptPath(.{.path = b.fmt("{s}/linker.ld", .{platform_path})});
   elf.addAssemblyFile(b.fmt("{s}/entry.S", .{platform_path}));
 
   elf.addBuildOption([] const u8, "board_name", target_name);
@@ -130,24 +130,23 @@ pub fn pad_file(b: *Builder, dep: *std.build.Step, path: []const u8) !*Transform
     padded_path,
   );
 
-  pad_step.step.dependOn(dep);
   return pad_step;
 }
 
 const pad_mode = enum{Padded, NotPadded};
 
 fn section_blob(b: *Builder, elf: *std.build.LibExeObjStep, mode: pad_mode, section_name: []const u8) !*TransformFileCommandStep {
-  const dumped_path = b.fmt("{s}.bin", .{elf.getOutputPath()});
+  const elf_path = b.getInstallPath(elf.install_step.?.dest_dir, elf.out_filename);
 
-  const dump_step = try make_transform(b, &elf.step,
+  const dumped_path = b.fmt("{s}.bin", .{elf_path});
+
+  const dump_step = try make_transform(b, &elf.install_step.?.step,
     &[_][]const u8 {
       "llvm-objcopy", "-O", "binary", "--only-section", section_name,
-      elf.getOutputPath(), dumped_path,
+      elf_path, dumped_path,
     },
     dumped_path,
   );
-
-  dump_step.step.dependOn(&elf.step);
 
   if(mode == .Padded)
     return pad_file(b, &dump_step.step, dump_step.output_path);
@@ -163,7 +162,7 @@ fn assembly_blob(b: *Builder, arch: Arch, name: []const u8, asm_file: []const u8
   const elf_filename = b.fmt("{s}_{s}.elf", .{name, @tagName(arch)});
 
   const elf = b.addExecutable(elf_filename, null);
-  elf.setLinkerScriptPath("src/blob.ld");
+  elf.setLinkerScriptPath(.{.path = "src/blob.ld"});
   elf.addAssemblyFile(asm_file);
 
   freestanding_target(elf, arch, false);
