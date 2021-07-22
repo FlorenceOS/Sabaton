@@ -3,6 +3,7 @@ pub const io_impl = @import("io/io.zig");
 pub const util = @import("lib/util.zig");
 pub const dtb = @import("lib/dtb.zig");
 pub const pmm = @import("lib/pmm.zig");
+pub const stivale = @import("lib/stivale.zig");
 
 pub const acpi = @import("platform/acpi.zig");
 pub const paging = @import("platform/paging.zig");
@@ -24,12 +25,17 @@ pub const io = platform.io;
 pub const debug = @import("builtin").mode == .Debug;
 pub const safety = std.debug.runtime_safety;
 
+pub const arch = if(@hasField(std.builtin, "arch")) std.builtin.arch else std.Target.current.cpu.arch;
+pub const endian = if(@hasField(std.builtin, "endian")) std.builtin.endian else arch.endian();
+
 pub const upper_half_phys_base = 0xFFFF800000000000;
 pub const get_page_size = @import("root").get_page_size;
 
 const std = @import("std");
 
 pub fn panic(reason: []const u8, stacktrace: ?*std.builtin.StackTrace) noreturn {
+  if(@hasDecl(platform, "panic_hook"))
+    platform.panic_hook();
   puts("PANIC!");
   if(reason.len != 0) {
     puts(" Reason: ");
@@ -244,6 +250,9 @@ pub fn main() noreturn {
 
   add_tag(&near("memmap_tag").addr(Stivale2tag)[0]);
 
+  if(@hasDecl(platform, "launch_kernel_hook"))
+    platform.launch_kernel_hook();
+
   sabaton.puts("Entering kernel...\n");
 
   asm volatile(
@@ -262,11 +271,11 @@ pub fn main() noreturn {
 pub fn stivale2_smp_ready(context: u64) noreturn {
   paging.apply_paging(&paging_root);
 
-  const cpu_tag = @intToPtr([*]u64, context);
+  const cpu_tag = @intToPtr(*stivale.SMPTagEntry, context);
 
   var goto: u64 = undefined;
   while(true) {
-    goto = @atomicLoad(u64, &cpu_tag[2], .Acquire);
+    goto = @atomicLoad(u64, &cpu_tag.goto, .Acquire);
     if(goto != 0)
       break;
 
@@ -275,14 +284,18 @@ pub fn stivale2_smp_ready(context: u64) noreturn {
     );
   }
 
+  asm volatile("DSB SY\n" ::: "memory");
+
   asm volatile(
+    \\   MSR SPSel, #0
     \\   MOV SP, %[stack]
     \\   MOV LR, #~0
     \\   BR  %[goto]
     :
-    : [stack] "r" (cpu_tag[3])
+    : [stack] "r" (cpu_tag.stack)
     , [arg] "{X0}" (cpu_tag)
     , [goto] "r" (goto)
+    : "memory"
   );
   unreachable;
 }

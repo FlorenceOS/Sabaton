@@ -18,6 +18,103 @@ const Header = packed struct {
   size_dt_struct: BE(u32),
 };
 
+pub fn find_cpu_id(dtb_id: usize) ?u32 {
+  var cpu_name_buf = [_]u8{undefined} ** 32;
+  cpu_name_buf[0] = 'c';
+  cpu_name_buf[1] = 'p';
+  cpu_name_buf[2] = 'u';
+  cpu_name_buf[3] = '@';
+
+  const buf_len = sabaton.util.write_int_decimal(cpu_name_buf[4..], dtb_id) + 4;
+  const id_bytes = (find(cpu_name_buf[0..buf_len], "reg") catch return null)[0..4];
+  return std.mem.readIntBig(u32, id_bytes[0..4]);
+}
+
+comptime {
+  asm(
+    \\.section .text.smp_stub
+    \\.global smp_stub
+    \\smp_stub:
+    \\  DSB SY
+    \\  LDR X1, [X0, #8]
+    \\  MOV SP, X1
+  );
+}
+
+extern fn smp_stub(context: u64) callconv(.C) noreturn;
+
+export fn smp_entry(context: u64) linksection(".text.smp_entry") noreturn {
+  @call(.{.modifier = .always_inline}, sabaton.stivale2_smp_ready, .{context});
+}
+
+pub fn psci_smp(comptime methods: ?sabaton.psci.Mode) void {
+  const psci_method = blk: {
+    if(comptime(methods == null)) {
+      const method_str = (sabaton.dtb.find("psci", "method") catch return)[0..3];
+      sabaton.puts("PSCI method: ");
+      sabaton.print_str(method_str);
+      sabaton.putchar('\n');
+      break :blk method_str;
+    }
+    break :blk undefined;
+  };
+
+  const num_cpus = blk:{
+    var count: u32 = 1;
+
+    while(true) : (count += 1) {
+      _ = find_cpu_id(count) orelse break :blk count;
+    }
+  };
+
+  sabaton.log_hex("Number of CPUs found: ", num_cpus);
+
+  if(num_cpus == 1)
+    return;
+
+  const smp_tag = sabaton.pmm.alloc_aligned(40 + num_cpus * @sizeOf(sabaton.stivale.SMPTagEntry), .Hole);
+  const entry   = @ptrToInt(smp_stub);
+  const smp_header = @intToPtr(*sabaton.stivale.SMPTagHeader, @ptrToInt(smp_tag.ptr));
+  smp_header.tag.ident = 0x34d1d96339647025;
+  smp_header.cpu_count = num_cpus;
+
+  var cpu_num: u32 = 1;
+  while(cpu_num < num_cpus) : (cpu_num += 1) {
+    const id      = find_cpu_id(cpu_num) orelse unreachable;
+    const tag_addr = @ptrToInt(smp_tag.ptr) + 40 + cpu_num * @sizeOf(sabaton.stivale.SMPTagEntry);
+    const tag_entry = @intToPtr(*sabaton.stivale.SMPTagEntry, tag_addr); 
+    tag_entry.acpi_id = cpu_num;
+    tag_entry.cpu_id = id;
+    const stack = sabaton.pmm.alloc_aligned(0x1000, .Hole);
+    tag_entry.stack = @ptrToInt(stack.ptr) + 0x1000;
+
+    // Make sure we've written everything we need to memory before waking this CPU up
+    asm volatile("DSB ST\n" ::: "memory");
+
+    if(comptime(methods == null)) {
+      if(std.mem.eql(u8, psci_method, "smc")) {
+        _ = sabaton.psci.wake_cpu(entry, id, tag_addr, .SMC);
+        continue;
+      }
+
+      if(std.mem.eql(u8, psci_method, "hvc")) {
+        _ = sabaton.psci.wake_cpu(entry, id, tag_addr, .HVC);
+        continue;
+      }
+    } else {
+      _ = sabaton.psci.wake_cpu(entry, id, tag_addr, comptime(methods.?));
+      continue;
+    }
+
+    if(comptime !sabaton.safety)
+      unreachable;
+
+    @panic("Unknown PSCI method!");
+  }
+
+  sabaton.add_tag(&smp_header.tag);
+}
+
 pub fn find(node_prefix: []const u8, prop_name: []const u8) ![]u8 {
   const dtb = sabaton.platform.get_dtb();
 

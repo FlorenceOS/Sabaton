@@ -7,7 +7,7 @@ PHDRS {
 }
 
 __kernel_file_loc = 0x4000000;
-__dram_base       = 0x40000000;
+__dram_base       = 1024M;
 
 SECTIONS {
   . = 0x40100000;
@@ -15,7 +15,33 @@ SECTIONS {
     __blob_base = .;
     *(.text.entry)
     KEEP(*(.text.main))
+    *(.text.smp_stub)
+    KEEP(*(.text.smp_entry))
     *(.text*)
+
+    . = ALIGN(8);
+    PROVIDE(memmap_tag = .);
+    QUAD(0x2187F79E8612DE07); /* Stivale2 memmap identifier */
+    QUAD(0); /* Next */
+    QUAD(7); /* Memory map entries */
+
+    QUAD(0); /* MMIO base region */
+    QUAD(__dram_base);
+    LONG(2);
+    LONG(0);
+
+    *(.data.memmap);
+
+    QUAD(0x4010000000); /* PCI ECAM */
+    QUAD(0x10000000);
+    LONG(2);
+    LONG(0);
+
+    QUAD(0x8000000000); /* PCI-E high mmio (64 bit bar space) */
+    QUAD(0x8000000000);
+    LONG(2);
+    LONG(0);
+
     *(.data*)
     *(.rodata*)
     *(.bss*)

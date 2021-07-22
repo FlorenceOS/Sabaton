@@ -1,6 +1,6 @@
 const sabaton = @import("root").sabaton;
 
-const Mode = enum{
+pub const Mode = enum{
   HVC,
   SMC,
 };

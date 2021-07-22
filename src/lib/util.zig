@@ -59,3 +59,18 @@ pub fn near(comptime name: []const u8) type {
 pub fn to_byte_slice(val: anytype) []u8 {
   return @ptrCast([*]u8, val)[0..@sizeOf(@TypeOf(val.*))];
 }
+
+/// Writes the int i into the buffer, returns the number
+/// of characters written.
+pub fn write_int_decimal(buf: []u8, i: usize) usize {
+  const current = '0' + @intCast(u8, i % 10);
+  const next = i / 10;
+  if(next != 0) {
+    const written = write_int_decimal(buf, next);
+    buf[written] = current;
+    return written + 1;
+  } else {
+    buf[0] = current;
+    return 1;
+  }
+}
