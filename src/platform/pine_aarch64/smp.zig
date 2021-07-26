@@ -1,8 +1,8 @@
 const sabaton = @import("root").sabaton;
 
 comptime {
-    asm(
-        // We pack the CPU boot trampolines into the stack slots, because reasons.
+    asm (
+    // We pack the CPU boot trampolines into the stack slots, because reasons.
         \\  .section .data
         \\  .balign 8
         \\  .global smp_tag
@@ -56,7 +56,7 @@ comptime {
 extern fn smp_stub(context: u64) callconv(.C) noreturn;
 
 export fn smp_entry(context: u64) linksection(".text.smp_entry") noreturn {
-  @call(.{.modifier = .always_inline}, sabaton.stivale2_smp_ready, .{context});
+    @call(.{ .modifier = .always_inline }, sabaton.stivale2_smp_ready, .{context});
 }
 
 fn cpucfg(offset: u16) *volatile u32 {
@@ -72,7 +72,7 @@ pub fn init() void {
     sabaton.add_tag(&smp_tag[0]);
 
     var core: u64 = 1;
-    while(core < 4) : (core += 1) {
+    while (core < 4) : (core += 1) {
         const ap_x0 = @ptrToInt(smp_tag) + 40 + core * 32;
         _ = sabaton.psci.wake_cpu(@ptrToInt(smp_stub), core, ap_x0, .SMC);
     }

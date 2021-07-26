@@ -7,22 +7,22 @@ pub fn portio_cpus(offset: usize) *volatile u32 {
 }
 
 fn verify_port_pin(comptime port: u8, comptime pin: u5) void {
-    switch(port) {
-        'B' => if(pin >= 10) @compileError("Pin out of range!"),
-        'C' => if(pin >= 17) @compileError("Pin out of range!"),
-        'D' => if(pin >= 25) @compileError("Pin out of range!"),
-        'E' => if(pin >= 18) @compileError("Pin out of range!"),
-        'F' => if(pin >= 7)  @compileError("Pin out of range!"),
-        'G' => if(pin >= 14) @compileError("Pin out of range!"),
-        'H' => if(pin >= 12) @compileError("Pin out of range!"),
-        'L' => if(pin >= 13) @compileError("Pin out of range!"),
+    switch (port) {
+        'B' => if (pin >= 10) @compileError("Pin out of range!"),
+        'C' => if (pin >= 17) @compileError("Pin out of range!"),
+        'D' => if (pin >= 25) @compileError("Pin out of range!"),
+        'E' => if (pin >= 18) @compileError("Pin out of range!"),
+        'F' => if (pin >= 7) @compileError("Pin out of range!"),
+        'G' => if (pin >= 14) @compileError("Pin out of range!"),
+        'H' => if (pin >= 12) @compileError("Pin out of range!"),
+        'L' => if (pin >= 13) @compileError("Pin out of range!"),
         else => @compileError("Unknown port!"),
     }
 }
 
 fn get_config(comptime port: u8, comptime pin: u5) *volatile u32 {
     const offset = @as(u16, @divTrunc(pin, 8) * 4);
-    return switch(port) {
+    return switch (port) {
         'B' => portio_cpux(0x0024 + offset),
         'C' => portio_cpux(0x0048 + offset),
         'D' => portio_cpux(0x006C + offset),
@@ -36,7 +36,7 @@ fn get_config(comptime port: u8, comptime pin: u5) *volatile u32 {
 }
 
 fn get_data(comptime port: u8) *volatile u32 {
-    return switch(port) {
+    return switch (port) {
         'B' => portio_cpux(0x0034),
         'C' => portio_cpux(0x0058),
         'D' => portio_cpux(0x007C),
@@ -49,14 +49,14 @@ fn get_data(comptime port: u8) *volatile u32 {
     };
 }
 
-pub fn configure_port(comptime port: u8, comptime pin: u5, io: enum{Input, Output}) void {
+pub fn configure_port(comptime port: u8, comptime pin: u5, io: enum { Input, Output }) void {
     comptime {
         verify_port_pin(port, pin);
     }
 
-    const field: u32 = if(io == .Input) 0b000 else 0b001;
+    const field: u32 = if (io == .Input) 0b000 else 0b001;
     const config = comptime get_config(port, pin);
-    const start_bit = comptime @as(u8, (pin%8)) * 4;
+    const start_bit = comptime @as(u8, (pin % 8)) * 4;
     config.* = (config.* & ~@as(u32, 0x7 << start_bit)) | (field << start_bit);
 }
 
@@ -79,7 +79,7 @@ pub fn write_port(comptime port: u8, comptime pin: u5, value: bool) void {
 
     const curr_bit: u32 = 1 << pin;
     const d = comptime get_data(port);
-    if(value) {
+    if (value) {
         d.* |= curr_bit;
     } else {
         d.* &= ~curr_bit;
