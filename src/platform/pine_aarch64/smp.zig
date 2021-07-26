@@ -53,8 +53,6 @@ comptime {
     );
 }
 
-extern fn smp_stub(context: u64) callconv(.C) noreturn;
-
 export fn smp_entry(context: u64) linksection(".text.smp_entry") noreturn {
     @call(.{ .modifier = .always_inline }, sabaton.stivale2_smp_ready, .{context});
 }
@@ -74,6 +72,6 @@ pub fn init() void {
     var core: u64 = 1;
     while (core < 4) : (core += 1) {
         const ap_x0 = @ptrToInt(smp_tag) + 40 + core * 32;
-        _ = sabaton.psci.wake_cpu(@ptrToInt(smp_stub), core, ap_x0, .SMC);
+        _ = sabaton.psci.wake_cpu(@ptrToInt(sabaton.near("smp_stub").addr(u32)), core, ap_x0, .SMC);
     }
 }

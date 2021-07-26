@@ -41,8 +41,6 @@ comptime {
     );
 }
 
-extern fn smp_stub(context: u64) callconv(.C) noreturn;
-
 export fn smp_entry(context: u64) linksection(".text.smp_entry") noreturn {
     @call(.{ .modifier = .always_inline }, sabaton.stivale2_smp_ready, .{context});
 }
@@ -73,7 +71,7 @@ pub fn psci_smp(comptime methods: ?sabaton.psci.Mode) void {
         return;
 
     const smp_tag = sabaton.pmm.alloc_aligned(40 + num_cpus * @sizeOf(sabaton.stivale.SMPTagEntry), .Hole);
-    const entry = @ptrToInt(smp_stub);
+    const entry = @ptrToInt(sabaton.near("smp_stub").addr(u32));
     const smp_header = @intToPtr(*sabaton.stivale.SMPTagHeader, @ptrToInt(smp_tag.ptr));
     smp_header.tag.ident = 0x34d1d96339647025;
     smp_header.cpu_count = num_cpus;
