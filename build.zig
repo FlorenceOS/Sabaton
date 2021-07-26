@@ -27,11 +27,17 @@ const TransformFileCommandStep = struct {
     fn run_command(s: *std.build.Step) !void {}
 };
 
+const custom_build_id: std.build.Step.Id =
+    if (@hasField(std.build.Step.Id, "Custom"))
+    .Custom
+else
+    .custom;
+
 fn make_transform(b: *Builder, dep: *std.build.Step, command: [][]const u8, output_path: []const u8) !*TransformFileCommandStep {
     const transform = try b.allocator.create(TransformFileCommandStep);
 
     transform.output_path = output_path;
-    transform.step = std.build.Step.init(.custom, "", b.allocator, TransformFileCommandStep.run_command);
+    transform.step = std.build.Step.init(custom_build_id, "", b.allocator, TransformFileCommandStep.run_command);
 
     const command_step = b.addSystemCommand(command);
 
@@ -76,6 +82,18 @@ fn freestanding_target(elf: *std.build.LibExeObjStep, arch: Arch, do_code_model:
     }));
 }
 
+fn takes_new_file_ref() bool {
+    return @typeInfo(@TypeOf(std.build.LibExeObjStep.setLinkerScriptPath)).Fn.args[1].arg_type.? != []const u8;
+}
+
+fn file_ref(filename: []const u8) if (takes_new_file_ref()) std.build.FileSource else []const u8 {
+    if (comptime takes_new_file_ref()) {
+        return .{ .path = filename };
+    } else {
+        return filename;
+    }
+}
+
 pub fn board_supported(arch: Arch, target_name: []const u8) bool {
     switch (arch) {
         .aarch64 => {
@@ -97,7 +115,7 @@ pub fn build_elf(b: *Builder, arch: Arch, target_name: []const u8, path_prefix: 
     const platform_path = b.fmt("{s}src/platform/{s}_{s}", .{ path_prefix, target_name, @tagName(arch) });
 
     const elf = b.addExecutable(elf_filename, b.fmt("{s}/main.zig", .{platform_path}));
-    elf.setLinkerScriptPath(.{ .path = b.fmt("{s}/linker.ld", .{platform_path}) });
+    elf.setLinkerScriptPath(file_ref(b.fmt("{s}/linker.ld", .{platform_path})));
     elf.addAssemblyFile(b.fmt("{s}/entry.S", .{platform_path}));
 
     elf.addBuildOption([]const u8, "board_name", target_name);
@@ -142,8 +160,12 @@ fn section_blob(b: *Builder, elf: *std.build.LibExeObjStep, mode: pad_mode, sect
         b,
         &elf.install_step.?.step,
         &[_][]const u8{
-            "llvm-objcopy", "-O",        "binary", "--only-section", section_name,
-            elf_path,       dumped_path,
+            // zig fmt: off
+            "llvm-objcopy",
+                "-O", "binary",
+                "--only-section", section_name,
+                elf_path, dumped_path,
+            // zig fmt: on
         },
         dumped_path,
     );
@@ -162,7 +184,7 @@ fn assembly_blob(b: *Builder, arch: Arch, name: []const u8, asm_file: []const u8
     const elf_filename = b.fmt("{s}_{s}.elf", .{ name, @tagName(arch) });
 
     const elf = b.addExecutable(elf_filename, null);
-    elf.setLinkerScriptPath(.{ .path = "src/blob.ld" });
+    elf.setLinkerScriptPath(file_ref("src/blob.ld"));
     elf.addAssemblyFile(asm_file);
 
     freestanding_target(elf, arch, false);
