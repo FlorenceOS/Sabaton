@@ -40,7 +40,7 @@ comptime {
 const sabaton = @import("root").sabaton;
 const std = @import("std");
 
-const pmm_state = enum {
+const pmm_state = enum(u2) {
     Prekernel = 0,
     KernelPages,
     PageTables,
@@ -60,6 +60,10 @@ pub fn verify_transition(s: pmm_state) void {
     }
 }
 
+extern var dram_base: u64;
+extern var pmm_head: u64;
+extern var usable_size: u64;
+
 pub fn switch_state(new_state: pmm_state) void {
     verify_transition(new_state);
 
@@ -67,12 +71,12 @@ pub fn switch_state(new_state: pmm_state) void {
     const page_size = sabaton.platform.get_page_size();
 
     // Page align the addresses and sizes
-    var current_base = sabaton.near("pmm_head").read(u64);
+    var current_base = pmm_head;
     current_base += page_size - 1;
     current_base &= ~(page_size - 1);
 
     const eff_idx = @as(usize, @enumToInt(current_state)) * 3;
-    const current_entry = sabaton.near("dram_base").addr(u64);
+    const current_entry = @ptrCast([*]u64, &dram_base);
 
     // Size = head - base
     current_entry[eff_idx + 1] = current_base - current_entry[eff_idx + 0];
@@ -113,7 +117,7 @@ fn verify_purpose(p: purpose) void {
 }
 
 fn alloc_impl(num_bytes: u64, comptime aligned: bool, p: purpose) []u8 {
-    var current_base = sabaton.near("pmm_head").read(u64);
+    var current_base = pmm_head;
 
     verify_purpose(p);
 
@@ -124,7 +128,7 @@ fn alloc_impl(num_bytes: u64, comptime aligned: bool, p: purpose) []u8 {
         current_base &= ~(page_size - 1);
     }
 
-    sabaton.near("pmm_head").write(current_base + num_bytes);
+    pmm_head = current_base + num_bytes;
     const ptr = @intToPtr([*]u8, current_base);
     @memset(ptr, 0, num_bytes);
     return ptr[0..num_bytes];
@@ -144,5 +148,5 @@ pub fn write_dram_size(dram_end: u64) void {
 
     // Align the current base
     const current_head = @ptrToInt(alloc_aligned(0, .Hole).ptr);
-    sabaton.near("usable_size").write(dram_end - current_head);
+    usable_size = dram_end - current_head;
 }

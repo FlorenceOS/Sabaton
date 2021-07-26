@@ -8,15 +8,15 @@ const fmt = @import("std").fmt;
 pub const putchar = sabaton.platform.io.putchar;
 
 const Printer = struct {
-    pub fn writeAll(self: *const Printer, str: []const u8) !void {
+    pub fn writeAll(_: *const Printer, str: []const u8) !void {
         print_str(str);
     }
 
-    pub fn print(self: *const Printer, comptime format: []const u8, args: anytype) !void {
+    pub fn print(_: *const Printer, comptime format: []const u8, args: anytype) !void {
         log(format, args);
     }
 
-    pub fn writeByteNTimes(self: *const Printer, val: u8, num: usize) !void {
+    pub fn writeByteNTimes(_: *const Printer, val: u8, num: usize) !void {
         var i: usize = 0;
         while (i < num) : (i += 1) {
             putchar(val);
@@ -31,7 +31,7 @@ usingnamespace if (sabaton.debug) struct {
         fmt.format(printer, format, args) catch unreachable;
     }
 } else struct {
-    pub fn log(comptime format: []const u8, args: anytype) void {
+    pub fn log(comptime _: []const u8, _: anytype) void {
         @compileError("Log called!");
     }
 };

@@ -14,16 +14,33 @@ pub fn wake_cpu(entry: u64, cpunum: u64, context: u64, comptime mode: Mode) u64 
         sabaton.log_hex("entry:         ", entry);
         sabaton.log_hex("context:       ", context);
     }
-    const result = asm volatile (comptime switch (mode) {
-            .HVC => "HVC #0",
-            .SMC => "SMC #0",
-        }
-        : [_] "={X0}" (-> u64)
-        : [_] "{X0}" (@as(u64, 0xC4000003)),
-          [_] "{X1}" (cpunum),
-          [_] "{X2}" (entry),
-          [_] "{X3}" (context)
-    );
+
+    // We have to duplicate the code because zig asm() can only take plain literals
+    const result = switch (mode) {
+        .HVC => asm volatile (
+            \\HVC #0
+            \\
+            // zig fmt: off
+            : [_] "={X0}" (-> u64)
+            : [_] "{X0}" (@as(u64, 0xC4000003))
+            , [_] "{X1}" (cpunum)
+            , [_] "{X2}" (entry)
+            , [_] "{X3}" (context)
+            // zig fmt: on
+        ),
+        .SMC => asm volatile (
+            \\SMC #0
+            \\
+            // zig fmt: off
+            : [_] "={X0}" (-> u64)
+            : [_] "{X0}" (@as(u64, 0xC4000003))
+            , [_] "{X1}" (cpunum)
+            , [_] "{X2}" (entry)
+            , [_] "{X3}" (context)
+            // zig fmt: on
+        ),
+    };
+
     if (sabaton.debug) {
         sabaton.log_hex("Wakeup result: ", result);
     }

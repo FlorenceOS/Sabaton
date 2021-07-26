@@ -9,6 +9,22 @@ pub const timer = @import("timer.zig");
 
 const led = @import("led.zig");
 
+comptime {
+    asm (
+        \\.section .data.low_memmap
+        \\.extern memmap_tag
+        \\memmap_tag:
+        \\.8byte 0x2187F79E8612DE07 // Stivale2 memmap identifier
+        \\.8byte 0 // Next
+        \\.8byte 5 // Memory map entries
+        \\
+        \\.8byte 0 // MMIO base region
+        \\.8byte 1024 * 1024 * 1024
+        \\.4byte 2, 0
+        \\
+    );
+}
+
 // We know the page size is 0x1000
 pub fn get_page_size() u64 {
     return 0x1000;

@@ -20,27 +20,9 @@ SECTIONS {
         *(.text*)
 
         . = ALIGN(8);
-        PROVIDE(memmap_tag = .);
-        QUAD(0x2187F79E8612DE07); /* Stivale2 memmap identifier */
-        QUAD(0); /* Next */
-        QUAD(7); /* Memory map entries */
-
-        QUAD(0); /* MMIO base region */
-        QUAD(__dram_base);
-        LONG(2);
-        LONG(0);
-
-        *(.data.memmap);
-
-        QUAD(0x4010000000); /* PCI ECAM */
-        QUAD(0x10000000);
-        LONG(2);
-        LONG(0);
-
-        QUAD(0x8000000000); /* PCI-E high mmio (64 bit bar space) */
-        QUAD(0x8000000000);
-        LONG(2);
-        LONG(0);
+        *(.data.low_memmap)
+        *(.data.memmap)
+        *(.data.high_memmap)
 
         *(.data*)
         *(.rodata*)

@@ -34,26 +34,6 @@ pub fn strlen(str: [*:0]u8) usize {
     return len;
 }
 
-pub fn near(comptime name: []const u8) type {
-    return struct {
-        pub fn read(comptime t: type) t {
-            return asm ("LDR %[out], " ++ name ++ "\n\t"
-                : [out] "=r" (-> t)
-            );
-        }
-
-        pub fn addr(comptime t: type) [*]t {
-            return asm ("ADR %[out], " ++ name ++ "\n\t"
-                : [out] "=r" (-> [*]t)
-            );
-        }
-
-        pub fn write(val: anytype) void {
-            addr(@TypeOf(val))[0] = val;
-        }
-    };
-}
-
 pub fn to_byte_slice(val: anytype) []u8 {
     return @ptrCast([*]u8, val)[0..@sizeOf(@TypeOf(val.*))];
 }

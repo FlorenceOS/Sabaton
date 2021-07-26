@@ -3,7 +3,7 @@ const sabaton = @import("root").sabaton;
 const pte = u64;
 const table_ptr = [*]pte;
 
-pub const Perms = enum {
+pub const Perms = enum(u3) {
     none = 0,
     x = 1,
     w = 2,

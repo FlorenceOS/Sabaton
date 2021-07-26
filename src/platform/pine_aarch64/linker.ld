@@ -22,17 +22,9 @@ SECTIONS {
         *(.text*)
 
         . = ALIGN(8);
-        PROVIDE(memmap_tag = .);
-        QUAD(0x2187F79E8612DE07); /* Stivale2 memmap identifier */
-        QUAD(0); /* Next */
-        QUAD(5); /* Memory map entries */
-
-        QUAD(0); /* MMIO base region */
-        QUAD(1024M);
-        LONG(2);
-        LONG(0);
-
-        *(.data.memmap);
+        *(.data.low_memmap)
+        *(.data.memmap)
+        *(.data.high_memmap)
 
         *(.data*)
         *(.rodata*)

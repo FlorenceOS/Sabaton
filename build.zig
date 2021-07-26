@@ -24,7 +24,7 @@ const Arch = if (@hasField(builtin, "Arch")) builtin.Arch else std.Target.Cpu.Ar
 const TransformFileCommandStep = struct {
     step: std.build.Step,
     output_path: []const u8,
-    fn run_command(s: *std.build.Step) !void {}
+    fn run_command(_: *std.build.Step) !void {}
 };
 
 fn make_transform(b: *Builder, dep: *std.build.Step, command: [][]const u8, output_path: []const u8) !*TransformFileCommandStep {

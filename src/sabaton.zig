@@ -18,7 +18,6 @@ pub const print_hex = io_impl.print_hex;
 pub const print_str = io_impl.print_str;
 pub const log = io_impl.log;
 pub const putchar = io_impl.putchar;
-pub const near = util.near;
 pub const vital = util.vital;
 pub const io = platform.io;
 
@@ -102,7 +101,7 @@ pub fn add_tag(tag: *Stivale2tag) void {
 var paging_root: paging.Root = undefined;
 
 comptime {
-    if (comptime sabaton.safety) {
+    if (sabaton.safety) {
         asm (
             \\.section .text
             \\.balign 0x800
@@ -182,6 +181,8 @@ pub fn install_evt() void {
     sabaton.puts("Installed EVT\n");
 }
 
+extern var memmap_tag: Stivale2tag;
+
 pub fn main() noreturn {
     if (comptime sabaton.safety) {
         install_evt();
@@ -248,7 +249,7 @@ pub fn main() noreturn {
 
     pmm.write_dram_size(@ptrToInt(dram.ptr) + dram.len);
 
-    add_tag(&near("memmap_tag").addr(Stivale2tag)[0]);
+    add_tag(&memmap_tag);
 
     if (@hasDecl(platform, "launch_kernel_hook"))
         platform.launch_kernel_hook();

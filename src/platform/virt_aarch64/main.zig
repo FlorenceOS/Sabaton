@@ -7,6 +7,31 @@ const std = @import("std");
 
 pub const display = @import("display.zig");
 
+comptime {
+    asm (
+        \\.section .data.low_memmap
+        \\.extern memmap_tag
+        \\memmap_tag:
+        \\.8byte 0x2187F79E8612DE07 // Stivale2 memmap identifier
+        \\.8byte 0 // Next
+        \\.8byte 7 // Memory map entries
+        \\
+        \\.8byte 0 // MMIO base region
+        \\.8byte __dram_base
+        \\.4byte 2, 0
+        \\
+        \\.section .data.high_memmap
+        \\.8byte 0x4010000000 // PCI ECAM
+        \\.8byte 0x10000000
+        \\.4byte 2, 0
+        \\
+        \\.8byte 0x8000000000 // PCI-E high mmio (64 bit bar space)
+        \\.8byte 0x8000000000
+        \\.4byte 2, 0
+        \\
+    );
+}
+
 pub const acpi = struct {
     pub fn init() void {
         if (sabaton.fw_cfg.find_file("etc/acpi/tables")) |tables| {
@@ -41,6 +66,8 @@ export fn _main() linksection(".text.main") noreturn {
     @call(.{ .modifier = .always_inline }, sabaton.main, .{});
 }
 
+extern const kernel_file_loc: [*]u8;
+
 pub fn get_kernel() [*]u8 {
     if (sabaton.fw_cfg.find_file("opt/Sabaton/kernel")) |kernel| {
         sabaton.log_hex("fw_cfg kernel of size ", kernel.size);
@@ -48,15 +75,17 @@ pub fn get_kernel() [*]u8 {
         kernel.read(kernel_bytes);
         return kernel_bytes.ptr;
     }
-    return sabaton.near("kernel_file_loc").read([*]u8);
+    return kernel_file_loc;
 }
 
+extern const dram_base: [*]u8;
+
 pub fn get_dtb() []u8 {
-    return sabaton.near("dram_base").read([*]u8)[0..0x100000];
+    return dram_base[0..0x100000];
 }
 
 pub fn get_dram() []u8 {
-    return sabaton.near("dram_base").read([*]u8)[0..get_dram_size()];
+    return dram_base[0..get_dram_size()];
 }
 
 pub fn map_platform(root: *sabaton.paging.Root) void {
@@ -71,7 +100,7 @@ fn get_dram_size() u64 {
     const base = std.mem.readIntBig(u64, memory_blob[0..8]);
     const size = std.mem.readIntBig(u64, memory_blob[8..16]);
 
-    if (sabaton.safety and base != sabaton.near("dram_base").read(u64)) {
+    if (sabaton.safety and base != @ptrToInt(dram_base)) {
         sabaton.log_hex("dtb has wrong memory base: ", base);
         unreachable;
     }
@@ -79,7 +108,10 @@ fn get_dram_size() u64 {
     return size;
 }
 
-pub fn add_platform_tags(kernel_header: *sabaton.Stivale2hdr) void {
-    sabaton.add_tag(&sabaton.near("uart_tag").addr(sabaton.Stivale2tag)[0]);
-    sabaton.add_tag(&sabaton.near("devicetree_tag").addr(sabaton.Stivale2tag)[0]);
+extern var uart_tag: sabaton.Stivale2tag;
+extern var devicetree_tag: sabaton.Stivale2tag;
+
+pub fn add_platform_tags(_: *sabaton.Stivale2hdr) void {
+    sabaton.add_tag(&uart_tag);
+    sabaton.add_tag(&devicetree_tag);
 }
