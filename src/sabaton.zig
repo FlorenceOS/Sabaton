@@ -182,6 +182,14 @@ pub fn install_evt() void {
     sabaton.puts("Installed EVT\n");
 }
 
+var kernel_file_tag: packed struct {
+    tag: Stivale2tag = .{
+        .ident = 0xe599d90c2975584a,
+        .next = null,
+    },
+    kernel_addr: u64 = undefined,
+} = .{};
+
 pub fn main() noreturn {
     if (comptime sabaton.safety) {
         install_evt();
@@ -201,6 +209,9 @@ pub fn main() noreturn {
         "loading .stivale2hdr",
         true,
     );
+
+    kernel_file_tag.kernel_addr = @ptrToInt(kernel_elf.data);
+    add_tag(&kernel_file_tag.tag);
 
     platform.add_platform_tags(&kernel_header);
 
