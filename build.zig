@@ -243,7 +243,7 @@ fn qemu_pi3_aarch64(b: *Builder, desc: []const u8, dep_elf: *std.build.LibExeObj
         "-serial", "null",
         "-serial", "stdio",
         "-d", "int",
-        "-kernel", dep.output_path
+        "-kernel", dep.output_path,
         // zig fmt: off
     };
 
