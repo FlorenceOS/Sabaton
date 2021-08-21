@@ -99,7 +99,7 @@ pub fn board_supported(arch: Arch, target_name: []const u8) bool {
         .aarch64 => {
             if (std.mem.eql(u8, target_name, "virt"))
                 return true;
-            if(std.mem.eql(u8, target_name, "pi3"))
+            if (std.mem.eql(u8, target_name, "pi3"))
                 return true;
             if (std.mem.eql(u8, target_name, "pine"))
                 return true;
@@ -230,12 +230,12 @@ fn qemu_aarch64(b: *Builder, board_name: []const u8, desc: []const u8, dep_elf: 
     command_step.dependOn(&run_step.step);
 }
 
-fn qemu_pi_aarch64(b: *Builder, desc: []const u8, dep_elf: *std.build.LibExeObjStep) !void {
+fn qemu_pi3_aarch64(b: *Builder, desc: []const u8, dep_elf: *std.build.LibExeObjStep) !void {
     const command_step = b.step("pi3", desc);
 
     const dep = try blob(b, dep_elf, .NotPadded);
 
-    const params = &[_][]const u8 {
+    const params = &[_][]const u8{
         // zig fmt: off
         "qemu-system-aarch64",
         "-M", "raspi3",
@@ -273,9 +273,8 @@ pub fn build(b: *Builder) !void {
         try build_elf(b, .aarch64, "virt", "./"),
     );
     
-    try qemu_pi_aarch64(
+    try qemu_pi3_aarch64(
         b,
-        "pi3",
         "Run aarch64 sabaton on for the qemu raspi3 board",
         try build_elf(b, .aarch64, "pi3", "./"),
     );
