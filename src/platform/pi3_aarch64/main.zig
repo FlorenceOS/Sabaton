@@ -4,78 +4,16 @@ pub const io = sabaton.io_impl.status_uart_mmio_32;
 pub const panic = sabaton.panic;
 pub const display = @import("display.zig");
 pub const ElfType = [*]u8;
-usingnamespace @import("regs.zig");
+const regs = @import("regs.zig");
 
 var page_size: u64 = 0x1000;
 pub fn get_page_size() u64 {
     return page_size;
 }
 
-fn delay(cycles: usize) void {
-    var i: u32 = 0;
-    while (i < cycles) : (i += 1) {
-        asm volatile ("nop");
-    }
-}
-
-const VC4_CLOCK = 250 * 1000 * 1000; // 250 MHz
-
-fn minuart_calculate_baud(baudrate: u32) u32 {
-    return VC4_CLOCK / (8 * baudrate) - 1; // the bcm2835 spec gives this formula: baudrate = vc4_clock / (8*(reg + 1))
-}
-
-const GpioMode = extern enum(u3) {
-    // zig fmt: off
-    Input  = 0b000,
-    Output = 0b001,
-    Alt5   = 0b010,
-    Alt4   = 0b011,
-    Alt0   = 0b100,
-    Alt1   = 0b101,
-    Alt2   = 0b110,
-    Alt3   = 0b111,
-    // zig fmt: on
-};
-
-fn gpio_fsel(pin: u5, mode: GpioMode, val: u32) u32 {
-    const mode_int: u32 = @enumToInt(mode);
-    const bit = pin * 3;
-    var temp = val;
-    temp &= ~(@as(u32, 0b111) << bit);
-    temp |= mode_int << bit;
-    return temp;
-}
-
-// This is the miniUART, it requires enable_uart=1 in config.txt
-fn miniuart_init() void {
-    // set pins 14-15 to alt5 (miniuart). gpfsel1 handles pins 10 to 19
-    GPFSEL1.* = gpio_fsel(14 - 10, .Alt5, gpio_fsel(15 - 10, .Alt5, GPFSEL1.*));
-    GPPUD.* = 0; // disable pullup, pulldown for the clocked regs
-    delay(150);
-    GPPUDCLK0.* = (1 << 14) | (1 << 15); // clock pins 14-15
-    delay(150);
-    GPPUDCLK0.* = 0; // clear clock for next usage
-    delay(150);
-
-    AUX_ENABLES.* |= 1; // enable the uart regs
-    AUX_MU_CNTL.* = 0; // disable uart functionality to set the regs
-    AUX_MU_IER.* = 0; // disable uart interrupts
-    AUX_MU_LCR.* = 0b11; // 8-bit mode
-    AUX_MU_MCR.* = 0; // RTS always high
-    AUX_MU_IIR.* = 0xc6;
-    AUX_MU_BAUD.* = minuart_calculate_baud(115200);
-    AUX_MU_CNTL.* = 0b11; // enable tx and rx fifos
-}
-
 export fn _main() linksection(".text.main") noreturn {
-    miniuart_init();
+    regs.miniuart_init();
     @call(.{ .modifier = .always_inline }, sabaton.main, .{});
-}
-
-pub fn mbox_call(channel: u4, ptr: usize) void {
-    while ((MBOX_STATUS.* & 0x80000000) != 0) {}
-    const addr = @truncate(u32, ptr) | @as(u32, channel);
-    MBOX_WRITE.* = addr;
 }
 
 pub fn get_dram() []allowzero u8 {
@@ -91,17 +29,16 @@ pub fn get_dram() []allowzero u8 {
     mbox[6] = 0; // size
     mbox[7] = 0; // terminator
 
-    mbox_call(8, @ptrToInt(mbox));
+    regs.mbox_call(8, @ptrToInt(mbox));
     const size = mbox[6];
     const addr = mbox[5];
     return @intToPtr([*]allowzero u8, addr)[0..size];
 }
 
 pub fn get_uart_info() io.Info {
-    const base = 0x1C28000;
     return .{
-        .uart = AUX_MU_IO,
-        .status = AUX_MU_LSR,
+        .uart = regs.AUX_MU_IO,
+        .status = regs.AUX_MU_LSR,
         .mask = 0x20,
         .value = 0x20,
     };
@@ -117,6 +54,6 @@ pub fn add_platform_tags(kernel_header: *sabaton.Stivale2hdr) void {
 }
 
 pub fn map_platform(root: *sabaton.paging.Root) void {
-    sabaton.paging.map(MMIO_BASE, MMIO_BASE, 0xFFFFFFF, .rw, .mmio, root);
-    sabaton.paging.map(sabaton.upper_half_phys_base + MMIO_BASE, MMIO_BASE, 0xFFFFFFF, .rw, .mmio, root);
+    sabaton.paging.map(regs.MMIO_BASE, regs.MMIO_BASE, 0xFFFFFFF, .rw, .mmio, root);
+    sabaton.paging.map(sabaton.upper_half_phys_base + regs.MMIO_BASE, regs.MMIO_BASE, 0xFFFFFFF, .rw, .mmio, root);
 }

@@ -1,5 +1,5 @@
 const sabaton = @import("root").sabaton;
-const platform = @import("main.zig");
+const regs = @import("regs.zig");
 
 pub fn init() void {
     var slice: [35]u32 align(16) = undefined;
@@ -48,7 +48,7 @@ pub fn init() void {
 
     mbox[34] = 0; // terminator
 
-    platform.mbox_call(8, @ptrToInt(mbox));
+    regs.mbox_call(8, @ptrToInt(mbox));
 
     sabaton.fb.pitch = @truncate(u16, mbox[33]);
     sabaton.fb.width = @truncate(u16, mbox[15]);
