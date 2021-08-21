@@ -231,24 +231,25 @@ fn qemu_aarch64(b: *Builder, board_name: []const u8, desc: []const u8, dep_elf: 
 }
 
 fn qemu_pi_aarch64(b: *Builder, desc: []const u8, dep_elf: *std.build.LibExeObjStep) !void {
-  const command_step = b.step("pi3", desc);
+    const command_step = b.step("pi3", desc);
 
-  const dep = try blob(b, dep_elf, .NotPadded);
+    const dep = try blob(b, dep_elf, .NotPadded);
 
-  const params =
-    &[_][]const u8 {
-      "qemu-system-aarch64",
-      "-M", "raspi3",
-      "-device", "loader,file=test/Flork_stivale2_aarch64,addr=0x200000,force-raw=on",
-      "-serial", "null",
-      "-serial", "stdio",
-      "-d", "int",
-      "-kernel", dep.output_path
+    const params = &[_][]const u8 {
+        // zig fmt: off
+        "qemu-system-aarch64",
+        "-M", "raspi3",
+        "-device", "loader,file=test/Flork_stivale2_aarch64,addr=0x200000,force-raw=on",
+        "-serial", "null",
+        "-serial", "stdio",
+        "-d", "int",
+        "-kernel", dep.output_path
+        // zig fmt: off
     };
 
-  const run_step = b.addSystemCommand(params);
-  run_step.step.dependOn(&dep.step);
-  command_step.dependOn(&run_step.step);
+    const run_step = b.addSystemCommand(params);
+    run_step.step.dependOn(&dep.step);
+    command_step.dependOn(&run_step.step);
 }
 
 const Device = struct {
