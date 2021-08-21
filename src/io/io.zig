@@ -8,82 +8,79 @@ const fmt = @import("std").fmt;
 pub const putchar = sabaton.platform.io.putchar;
 
 const Printer = struct {
-  pub fn writeAll(self: *const Printer, str: []const u8) !void {
-    print_str(str);
-  }
-
-  pub fn print(self: *const Printer, comptime format: []const u8, args: anytype) !void {
-    log(format, args);
-  }
-
-  pub fn writeByteNTimes(self: *const Printer, val: u8, num: usize) !void {
-    var i: usize = 0;
-    while(i < num): (i += 1) {
-      putchar(val);
+    pub fn writeAll(self: *const Printer, str: []const u8) !void {
+        print_str(str);
     }
-  }
-  pub const Error = anyerror;
+
+    pub fn print(self: *const Printer, comptime format: []const u8, args: anytype) !void {
+        log(format, args);
+    }
+
+    pub fn writeByteNTimes(self: *const Printer, val: u8, num: usize) !void {
+        var i: usize = 0;
+        while (i < num) : (i += 1) {
+            putchar(val);
+        }
+    }
+    pub const Error = anyerror;
 };
 
-usingnamespace if(sabaton.debug) struct {
+usingnamespace if (sabaton.debug) struct {
     pub fn log(comptime format: []const u8, args: anytype) void {
-      var printer = Printer{};
-      fmt.format(printer, format, args) catch unreachable;
+        var printer = Printer{};
+        fmt.format(printer, format, args) catch unreachable;
     }
-  } else struct {
+} else struct {
     pub fn log(comptime format: []const u8, args: anytype) void {
-      @compileError("Log called!");
+        @compileError("Log called!");
     }
-  };
+};
 
 pub fn print_chars(ptr: [*]const u8, num: usize) void {
-  var i: usize = 0;
-  while(i < num): (i += 1) {
-    putchar(ptr[i]);
-  }
+    var i: usize = 0;
+    while (i < num) : (i += 1) {
+        putchar(ptr[i]);
+    }
 }
 
 fn wrapped_print_hex(num: u64, nibbles: isize) void {
-  var i: isize = nibbles - 1;
-  while(i >= 0) : (i -= 1){
-    putchar("0123456789ABCDEF"[(num >> @intCast(u6, i * 4))&0xF]);
-  }
+    var i: isize = nibbles - 1;
+    while (i >= 0) : (i -= 1) {
+        putchar("0123456789ABCDEF"[(num >> @intCast(u6, i * 4)) & 0xF]);
+    }
 }
 
 pub fn print_hex(num: anytype) void {
-  switch(@typeInfo(@TypeOf(num))) {
-    else => @compileError("Unknown print_hex type!"),
+    switch (@typeInfo(@TypeOf(num))) {
+        else => @compileError("Unknown print_hex type!"),
 
-    .Int =>
-      @call(.{.modifier = .never_inline}, wrapped_print_hex, .{num, (@bitSizeOf(@TypeOf(num)) + 3)/4}),
-    .Pointer =>
-      @call(.{.modifier = .always_inline}, print_hex, .{@ptrToInt(num)}),
-    .ComptimeInt =>
-      @call(.{.modifier = .always_inline}, print_hex, .{@as(usize, num)}),
-  }
+        .Int => @call(.{ .modifier = .never_inline }, wrapped_print_hex, .{ num, (@bitSizeOf(@TypeOf(num)) + 3) / 4 }),
+        .Pointer => @call(.{ .modifier = .always_inline }, print_hex, .{@ptrToInt(num)}),
+        .ComptimeInt => @call(.{ .modifier = .always_inline }, print_hex, .{@as(usize, num)}),
+    }
 }
 
 pub fn log_hex(str: [*:0]const u8, val: anytype) void {
-  puts(str);
-  print_hex(val);
-  putchar('\n');
+    puts(str);
+    print_hex(val);
+    putchar('\n');
 }
 
 fn wrapped_puts(str_c: [*:0]const u8) void {
-  var str = str_c;
-  while(str[0] != 0): (str += 1)
-    @call(.{.modifier = .never_inline}, putchar, .{str[0]});
+    var str = str_c;
+    while (str[0] != 0) : (str += 1)
+        @call(.{ .modifier = .never_inline }, putchar, .{str[0]});
 }
 
 pub fn puts(str_c: [*:0]const u8) void {
-  @call(.{.modifier = .never_inline}, wrapped_puts, .{str_c});
+    @call(.{ .modifier = .never_inline }, wrapped_puts, .{str_c});
 }
 
 fn wrapped_print_str(str: []const u8) void {
-  for(str) |c|
-    putchar(c);
+    for (str) |c|
+        putchar(c);
 }
 
 pub fn print_str(str: []const u8) void {
-  @call(.{.modifier = .never_inline}, wrapped_print_str, .{str});
+    @call(.{ .modifier = .never_inline }, wrapped_print_str, .{str});
 }

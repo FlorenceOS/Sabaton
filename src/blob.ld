@@ -1,7 +1,7 @@
 ENTRY(_start)
 
 SECTIONS {
-  .blob : {
-    *(.blob*)
-  }
+    .blob : {
+        *(.blob*)
+    }
 }
