@@ -60,7 +60,6 @@ pub fn verify_transition(s: pmm_state) void {
     }
 }
 
-
 pub fn switch_state(new_state: pmm_state) void {
     verify_transition(new_state);
 
