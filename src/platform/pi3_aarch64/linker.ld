@@ -29,8 +29,8 @@ SECTIONS {
 
         *(.data.memmap);
 
-        QUAD(0x3F000000); /* MMIO base region */
-        QUAD(0x01000000);
+        QUAD(0x3C000000); /* MMIO base region */
+        QUAD(0x04000000);
         LONG(2);
         LONG(0);
 

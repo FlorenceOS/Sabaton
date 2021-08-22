@@ -54,6 +54,6 @@ pub fn add_platform_tags(kernel_header: *sabaton.Stivale2hdr) void {
 }
 
 pub fn map_platform(root: *sabaton.paging.Root) void {
-    sabaton.paging.map(regs.MMIO_BASE, regs.MMIO_BASE, 0xFFFFFFF, .rw, .mmio, root);
-    sabaton.paging.map(sabaton.upper_half_phys_base + regs.MMIO_BASE, regs.MMIO_BASE, 0xFFFFFFF, .rw, .mmio, root);
+    sabaton.paging.map(0x3C000000, 0x3C000000, 0x4000000, .rw, .mmio, root);
+    sabaton.paging.map(sabaton.upper_half_phys_base + 0x3C000000, 0x3C000000, 0x4000000, .rw, .mmio, root);
 }
