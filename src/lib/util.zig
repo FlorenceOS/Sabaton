@@ -39,6 +39,8 @@ pub fn near(comptime name: []const u8) type {
         pub fn read(comptime t: type) t {
             return asm ("LDR %[out], " ++ name ++ "\n\t"
                 : [out] "=r" (-> t)
+                :
+                : "memory"
             );
         }
 
