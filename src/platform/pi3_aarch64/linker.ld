@@ -42,7 +42,7 @@ SECTIONS {
     }
 
     . = ALIGN(4K);
-    __pmm_base = .;
+    __pmm_base = 0x200000 + 16M;
 
     .eh_frame : {
         *(.eh_frame*)
