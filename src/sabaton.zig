@@ -266,14 +266,19 @@ pub fn main() noreturn {
 
     sabaton.puts("Entering kernel...\n");
 
+    enterKernel(&kernel_elf, kernel_header.stack);
+}
+
+pub fn enterKernel(kernel_elf: *const Elf, stack: u64) noreturn {
     asm volatile (
+        \\  MSR SPSel, XZR
         \\  DMB SY
         \\  CBZ %[stack], 1f
         \\  MOV SP, %[stack]
         \\1:BR %[entry]
         :
         : [entry] "r" (kernel_elf.entry()),
-          [stack] "r" (kernel_header.stack),
+          [stack] "r" (stack),
           [info] "{X0}" (&stivale2_info)
     );
     unreachable;

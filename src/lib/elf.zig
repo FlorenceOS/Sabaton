@@ -70,7 +70,7 @@ pub const Elf = struct {
         return @ptrCast([*:0]u8, &self.shstrtab.?[offset]);
     }
 
-    pub fn header(self: *@This()) *elf64hdr {
+    pub fn header(self: *const @This()) *elf64hdr {
         return @ptrCast(*elf64hdr, self.data);
     }
 
@@ -163,7 +163,7 @@ pub const Elf = struct {
         return result;
     }
 
-    pub fn entry(self: *@This()) usize {
+    pub fn entry(self: *const @This()) usize {
         const h = self.header();
         return h.entry;
     }
