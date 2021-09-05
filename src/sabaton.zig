@@ -92,7 +92,7 @@ fn pad_str(str: []const u8, comptime len: usize) [len]u8 {
     return ret;
 }
 
-var stivale2_info: InfoStruct = .{};
+pub var stivale2_info: InfoStruct = .{};
 
 pub fn add_tag(tag: *Stivale2tag) void {
     tag.next = stivale2_info.tags;
