@@ -190,6 +190,19 @@ const MemoryMap = struct {
         ), "Getting UEFI memory map");
     }
 
+    pub fn containsAddr(self: *const @This(), addr: usize) bool {
+        var iter = Iterator{ .map = self };
+
+        while (iter.next()) |e| {
+            const start_addr = e.physical_start;
+            const end_addr = start_addr + e.number_of_pages * page_size;
+            if (start_addr <= addr and addr < end_addr)
+                return true;
+        }
+
+        return false;
+    }
+
     fn parse_to_stivale2(self: *const @This(), stivale2buf: []align(8) u8) void {
         var iter = Iterator{ .map = self };
 
@@ -357,6 +370,8 @@ fn maybe_switch_EL() void {
         switch_el2_to_el1();
 }
 
+pub var memmap: MemoryMap = undefined;
+
 pub fn main() noreturn {
     if (locateProtocol(uefi.protocols.SimpleTextOutputProtocol)) |proto| {
         conout = proto;
@@ -399,11 +414,13 @@ pub fn main() noreturn {
     // Ought to be enough for any firmwares crappy memory layout, right?
     const stivale2_memmap_bytes = @alignCast(8, sabaton.vital(allocator.alloc(u8, 64 * 1024), "Allocating for stivale2 memory map", true));
 
-    // Get a framebuffer
-    @import("framebuffer.zig").init();
-
     // Get the memory map to calculate a max address used by UEFI
-    var memmap = MemoryMap.init();
+    memmap.init();
+
+    // Get a framebuffer
+    @import("framebuffer.zig").init(&paging_root);
+
+    sabaton.log_hex("Framebuffer at ", sabaton.fb.addr);
 
     memmap.map_everything(&paging_root);
 
