@@ -298,13 +298,64 @@ const MemoryMap = struct {
         }
     }
 
-    fn init() @This() {
-        var result: @This() = undefined;
-        result.memory_map.ptr = @alignCast(8, sabaton.vital(allocator.alloc(u8, memory_map_size), "Allocating for UEFI memory map", true).ptr);
-        result.fetch();
-        return result;
+    fn init(self: *@This()) void {
+        self.memory_map.ptr = @alignCast(8, sabaton.vital(allocator.alloc(u8, memory_map_size), "Allocating for UEFI memory map", true).ptr);
+        self.fetch();
     }
 };
+
+comptime {
+    asm (
+    // zig fmt: off
+        \\switch_el2_to_el1:
+        \\ MRS X1, SCTLR_EL2
+        \\ MSR SCTLR_EL1, X1
+
+        \\ // aarch64 in EL1
+        \\ ORR X1, XZR, #(1 << 31)
+        \\ ORR X1, X1,  #(1 << 1)
+        \\ MSR HCR_EL2, X1
+
+        \\ // Counters in EL1
+        \\ MRS X1, CNTHCTL_EL2
+        \\ ORR X1, X1, #3
+        \\ MSR CNTHCTL_EL2, X1
+        \\ MSR CNTVOFF_EL2, XZR
+
+        \\ // FP/SIMD in EL1
+        \\ MOV X1, #0x33FF
+        \\ MSR CPTR_EL2, X1
+        \\ MSR HSTR_EL2, XZR
+        \\ MOV X1, #0x300000
+        \\ MSR CPACR_EL1, X1
+
+        \\ // Get the fuck out of EL2 into EL1
+        \\ ADR X1, EL1
+        \\ MSR ELR_EL2, X1
+        \\ MOV X1, #0x3C5
+        \\ MSR SPSR_EL2, X1
+        \\ MOV X1, SP
+        \\ ERET
+        \\EL1:
+        \\ MOV SP, X1
+        \\ RET
+        // zig fmt: on
+    );
+}
+
+extern fn switch_el2_to_el1() void;
+
+fn maybe_switch_EL() void {
+    const current_el = (asm volatile ("MRS %[el], CurrentEL"
+        : [el] "=r" (-> u64)
+    ) >> 2) & 0x3;
+
+    if (current_el == 3)
+        unreachable; // Todo: implement
+
+    if (current_el > 1)
+        switch_el2_to_el1();
+}
 
 pub fn main() noreturn {
     if (locateProtocol(uefi.protocols.SimpleTextOutputProtocol)) |proto| {
@@ -369,6 +420,8 @@ pub fn main() noreturn {
     uefi.system_table.boot_services = null;
 
     sabaton.paging.apply_paging(&paging_root);
+
+    maybe_switch_EL();
 
     sabaton.enterKernel(&kernel_elf_file, kernel_stivale2_header.stack);
 }
