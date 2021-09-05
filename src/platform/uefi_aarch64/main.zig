@@ -7,6 +7,8 @@ const fs = @import("fs.zig");
 
 var conout: ?*uefi.protocols.SimpleTextOutputProtocol = null;
 
+pub const panic = sabaton.panic;
+
 pub const io = struct {
     pub fn putchar(ch: u8) void {
         if (conout) |co| {
