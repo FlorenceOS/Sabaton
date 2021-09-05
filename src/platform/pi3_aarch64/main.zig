@@ -3,7 +3,6 @@ pub const sabaton = @import("../../sabaton.zig");
 pub const io = sabaton.io_impl.status_uart_mmio_32;
 pub const panic = sabaton.panic;
 pub const display = @import("display.zig");
-pub const ElfType = [*]u8;
 const regs = @import("regs.zig");
 
 var page_size: u64 = 0x1000;

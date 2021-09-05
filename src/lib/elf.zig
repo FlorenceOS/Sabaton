@@ -54,7 +54,7 @@ pub const elf64phdr = packed struct {
 };
 
 pub const Elf = struct {
-    data: sabaton.platform.ElfType,
+    data: [*]u8,
     shstrtab: ?[]u8 = undefined,
 
     pub fn init(self: *@This()) void {
