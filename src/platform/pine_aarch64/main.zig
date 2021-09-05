@@ -1,6 +1,5 @@
 pub const sabaton = @import("../../sabaton.zig");
 pub const io = sabaton.io_impl.status_uart_mmio_32;
-pub const ElfType = [*]u8;
 pub const panic = sabaton.panic;
 
 pub const display = @import("display.zig");
@@ -110,7 +109,7 @@ pub fn launch_kernel_hook() void {
     led.output(.{ .green = false, .red = false, .blue = true });
 }
 
-pub fn get_kernel() ElfType {
+pub fn get_kernel() [*]u8 {
     return sabaton.near("kernel_file_loc").read([*]u8);
 }
 

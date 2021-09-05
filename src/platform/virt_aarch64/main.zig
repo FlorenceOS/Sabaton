@@ -1,6 +1,5 @@
 pub const sabaton = @import("../../sabaton.zig");
 pub const io = sabaton.io_impl.uart_mmio_32;
-pub const ElfType = [*]u8;
 pub const panic = sabaton.panic;
 
 const std = @import("std");
