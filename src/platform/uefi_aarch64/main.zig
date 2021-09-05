@@ -127,6 +127,171 @@ pub fn get_page_size() u64 {
 
 var paging_root: sabaton.paging.Root = undefined;
 
+// O(n^2) but who cares, it's really small code
+fn sortStivale2Memmap(data: []u8) void {
+    const num_entries = data.len / 0x18;
+    if (num_entries > 1) {
+        var curr_min_i: usize = 0;
+        var curr_min_addr = std.mem.readIntNative(u64, data[0..8]);
+
+        // First let's find the smallest addr among the rest
+        var i: usize = 1;
+
+        while (i < num_entries) : (i += 1) {
+            const curr_addr = std.mem.readIntNative(u64, data[i * 0x18 ..][0..8]);
+            if (curr_addr < curr_min_addr) {
+                curr_min_addr = curr_addr;
+                curr_min_i = i;
+            }
+        }
+
+        // Swap the current entry with the smallest one
+        std.mem.swap([0x18]u8, data[0..0x18], data[curr_min_i * 0x18 ..][0..0x18]);
+
+        return @call(.{ .modifier = .always_tail }, sortStivale2Memmap, .{data[0x18..]});
+    }
+}
+
+const MemoryMap = struct {
+    memory_map: []align(8) u8,
+    key: usize,
+    desc_size: usize,
+    desc_version: u32,
+
+    const memory_map_size = 64 * 1024;
+
+    const Iterator = struct {
+        map: *const MemoryMap,
+        curr_offset: usize = 0,
+
+        fn next(self: *@This()) ?*uefi.tables.MemoryDescriptor {
+            if (self.curr_offset + @offsetOf(uefi.tables.MemoryDescriptor, "attribute") >= self.map.memory_map.len)
+                return null;
+
+            const result = @ptrCast(*uefi.tables.MemoryDescriptor, @alignCast(8, self.map.memory_map.ptr + self.curr_offset));
+            self.curr_offset += self.map.desc_size;
+            return result;
+        }
+    };
+
+    fn fetch(self: *@This()) void {
+        self.memory_map.len = memory_map_size;
+        uefiVital(uefi.system_table.boot_services.?.getMemoryMap(
+            &self.memory_map.len,
+            @ptrCast([*]uefi.tables.MemoryDescriptor, @alignCast(8, self.memory_map.ptr)), // Cast is workaround for the wrong zig type annotation
+            &self.key,
+            &self.desc_size,
+            &self.desc_version,
+        ), "Getting UEFI memory map");
+    }
+
+    fn parse_to_stivale2(self: *const @This(), stivale2buf: []align(8) u8) void {
+        var iter = Iterator{ .map = self };
+
+        std.mem.writeIntNative(u64, stivale2buf[0x00..0x08], 0x2187F79E8612DE07);
+        //std.mem.writeIntNative(u64, stivale2buf[0x08..0x10], 0); // Next ptr
+        const num_entries = @ptrCast(*u64, &stivale2buf[0x10]);
+        num_entries.* = 0;
+
+        var stivale2ents = stivale2buf[0x18..];
+
+        while (iter.next()) |e| : ({
+            num_entries.* += 1;
+            stivale2ents = stivale2ents[0x18..];
+        }) {
+            std.mem.writeIntNative(u64, stivale2ents[0x00..0x08], e.physical_start);
+            std.mem.writeIntNative(u64, stivale2ents[0x08..0x10], e.number_of_pages * page_size);
+            //std.mem.writeIntNative(u32, stivale2ents[0x14..0x18], stiavle2_reserved);
+            std.mem.writeIntNative(u32, stivale2ents[0x10..0x14], @as(u32, switch (e.type) {
+                .ReservedMemoryType,
+                .UnusableMemory,
+                .MemoryMappedIO,
+                .MemoryMappedIOPortSpace,
+                .PalCode,
+                .PersistentMemory,
+                .RuntimeServicesCode,
+                .RuntimeServicesData,
+                => 2, // RESERVED
+
+                // We load all kernel code segments as LoaderData, should probably be changed to reclaim more memory here
+                .LoaderData => 0x1001, // KERNEL_AND_MODULES
+                .LoaderCode => 0x1000, // BOOTLOADER_RECLAIMABLE
+
+                // Boot services entries are marked as usable since we've
+                // already exited boot services when we enter the kernel
+                .BootServicesCode,
+                .BootServicesData,
+                => 1, // USABLE
+
+                .ConventionalMemory => 1, // USABLE
+
+                .ACPIReclaimMemory => 3, // ACPI_RECLAIMABLE
+
+                .ACPIMemoryNVS => 4, // ACPI_NVS
+
+                else => @panic("Bad memory map type"),
+            }));
+        }
+
+        sortStivale2Memmap(stivale2buf[0x18..]);
+    }
+
+    fn map_everything(self: *const @This(), root: *sabaton.paging.Root) void {
+        var iter = Iterator{ .map = self };
+
+        while (iter.next()) |e| {
+            const memory_type: sabaton.paging.MemoryType = switch (e.type) {
+                .ReservedMemoryType,
+                .LoaderCode,
+                .LoaderData,
+                .BootServicesCode,
+                .BootServicesData,
+                .RuntimeServicesCode,
+                .RuntimeServicesData,
+                .ConventionalMemory,
+                .UnusableMemory,
+                .ACPIReclaimMemory,
+                .PersistentMemory,
+                => .memory,
+                .ACPIMemoryNVS,
+                .MemoryMappedIO,
+                .MemoryMappedIOPortSpace,
+                => .mmio,
+                else => continue,
+            };
+            const perms: sabaton.paging.Perms = switch (e.type) {
+                .ReservedMemoryType,
+                .LoaderData,
+                .BootServicesCode,
+                .BootServicesData,
+                .RuntimeServicesData,
+                .ConventionalMemory,
+                .UnusableMemory,
+                .ACPIReclaimMemory,
+                .PersistentMemory,
+                .ACPIMemoryNVS,
+                .MemoryMappedIO,
+                .MemoryMappedIOPortSpace,
+                => .rw,
+                .LoaderCode,
+                .RuntimeServicesCode,
+                => .rwx,
+                else => continue,
+            };
+
+            sabaton.paging.map(e.physical_start, e.physical_start, e.number_of_pages * page_size, perms, memory_type, root);
+            sabaton.paging.map(sabaton.upper_half_phys_base + e.physical_start, e.physical_start, e.number_of_pages * page_size, perms, memory_type, root);
+        }
+    }
+
+    fn init() @This() {
+        var result: @This() = undefined;
+        result.memory_map.ptr = @alignCast(8, sabaton.vital(allocator.alloc(u8, memory_map_size), "Allocating for UEFI memory map", true).ptr);
+        result.fetch();
+        return result;
+    }
+};
+
 pub fn main() noreturn {
     if (locateProtocol(uefi.protocols.SimpleTextOutputProtocol)) |proto| {
         conout = proto;
@@ -166,8 +331,39 @@ pub fn main() noreturn {
     // Load the kernel into memory
     kernel_elf_file.load(kernel_memory_bytes, &paging_root);
 
-    // Get a framebuffer if requested by the kernel
+    // Ought to be enough for any firmwares crappy memory layout, right?
+    const stivale2_memmap_bytes = @alignCast(8, sabaton.vital(allocator.alloc(u8, 64 * 1024), "Allocating for stivale2 memory map", true));
+
+    // Get a framebuffer
     @import("framebuffer.zig").init();
 
-    while (true) {}
+    // Get the memory map to calculate a max address used by UEFI
+    var memmap = MemoryMap.init();
+
+    memmap.map_everything(&paging_root);
+
+    // Now we need a memory map to exit boot services
+    memmap.fetch();
+
+    memmap.parse_to_stivale2(stivale2_memmap_bytes);
+    sabaton.add_tag(@ptrCast(*sabaton.Stivale2tag, stivale2_memmap_bytes.ptr));
+
+    uefiVital(uefi.system_table.boot_services.?.exitBootServices(uefi.handle, memmap.key), "Exiting boot services");
+
+    conout = null; // We can't call UEFI after exiting boot services
+
+    sabaton.paging.apply_paging(&paging_root);
+
+    asm volatile (
+        \\  MSR SPSel, XZR
+        \\  DMB SY
+        \\  CBZ %[stack], 1f
+        \\  MOV SP, %[stack]
+        \\1:BR %[entry]
+        :
+        : [entry] "r" (kernel_elf_file.entry()),
+          [stack] "r" (kernel_stivale2_header.stack),
+          [_] "{X0}" (sabaton.stivale2_info)
+    );
+    unreachable;
 }
