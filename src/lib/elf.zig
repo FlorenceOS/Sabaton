@@ -105,7 +105,7 @@ pub const Elf = struct {
         return error.HeaderNotFound;
     }
 
-    pub fn load(self: *@This(), mempool_c: []align(4096) u8) void {
+    pub fn load(self: *@This(), mempool_c: []align(4096) u8, root: *sabaton.paging.Root) void {
         const page_size = sabaton.platform.get_page_size();
         var mempool = mempool_c;
 
@@ -126,7 +126,7 @@ pub const Elf = struct {
             @memset(mempool.ptr + ph.filesz, 0, ph.memsz - ph.filesz);
 
             const perms = @intToEnum(sabaton.paging.Perms, @intCast(u3, ph.flags & 0x7));
-            sabaton.paging.map(ph.vaddr, @ptrToInt(mempool.ptr), ph.memsz, perms, .memory, null);
+            sabaton.paging.map(ph.vaddr, @ptrToInt(mempool.ptr), ph.memsz, perms, .memory, root);
 
             // TODO: Relocations
 

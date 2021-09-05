@@ -235,7 +235,7 @@ pub fn main() noreturn {
     paging.apply_paging(&paging_root);
     // Check the flags in the stivale2 header
     sabaton.puts("Loading kernel into memory\n");
-    kernel_elf.load(kernel_memory_pool);
+    kernel_elf.load(kernel_memory_pool, &paging_root);
 
     if (sabaton.debug)
         sabaton.puts("Sealing PMM\n");
