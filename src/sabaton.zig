@@ -269,7 +269,7 @@ pub fn main() noreturn {
     enterKernel(&kernel_elf, kernel_header.stack);
 }
 
-pub fn enterKernel(kernel_elf: *const Elf, stack: u64) noreturn {
+pub fn enterKernel(kernel_elf: *const Elf, stack: u64) callconv(.Inline) noreturn {
     asm volatile (
         \\  MSR SPSel, XZR
         \\  DMB SY
