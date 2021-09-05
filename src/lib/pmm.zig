@@ -1,40 +1,42 @@
 comptime {
-    asm (
-        \\.extern __pmm_base
-        \\.extern __dram_base
-        \\
-        \\.global dram_base
-        \\.global pmm_head
-        \\
-        \\ .section .data.memmap
-        \\ // Prekernel reclaimable
-        \\ dram_base:
-        \\   .8byte __dram_base
-        \\ prekernel_size:
-        \\   .8byte 0
-        \\   .8byte 0x1000 // Reclaimable
-        \\
-        \\ // Kernel and module pages
-        \\ stivalehdr_pages_base:
-        \\   .8byte 0
-        \\ stivalehdr_pages_size:
-        \\   .8byte 0
-        \\   .8byte 0x1001 // Kernel and modules
-        \\
-        \\ // Page tables
-        \\ pt_base:
-        \\   .8byte 0
-        \\ pt_size:
-        \\   .8byte 0
-        \\   .8byte 0x1000 // Reclaimable
-        \\
-        \\ // Usable region
-        \\ pmm_head:
-        \\   .8byte __pmm_base
-        \\ usable_size:
-        \\   .8byte 0
-        \\   .8byte 1 // Usable
-    );
+    if (std.Target.current.os.tag != .uefi) {
+        asm (
+            \\.extern __pmm_base
+            \\.extern __dram_base
+            \\
+            \\.global dram_base
+            \\.global pmm_head
+            \\
+            \\ .section .data.memmap
+            \\ // Prekernel reclaimable
+            \\ dram_base:
+            \\   .8byte __dram_base
+            \\ prekernel_size:
+            \\   .8byte 0
+            \\   .8byte 0x1000 // Reclaimable
+            \\
+            \\ // Kernel and module pages
+            \\ stivalehdr_pages_base:
+            \\   .8byte 0
+            \\ stivalehdr_pages_size:
+            \\   .8byte 0
+            \\   .8byte 0x1001 // Kernel and modules
+            \\
+            \\ // Page tables
+            \\ pt_base:
+            \\   .8byte 0
+            \\ pt_size:
+            \\   .8byte 0
+            \\   .8byte 0x1000 // Reclaimable
+            \\
+            \\ // Usable region
+            \\ pmm_head:
+            \\   .8byte __pmm_base
+            \\ usable_size:
+            \\   .8byte 0
+            \\   .8byte 1 // Usable
+        );
+    }
 }
 
 const sabaton = @import("root").sabaton;
@@ -113,21 +115,27 @@ fn verify_purpose(p: purpose) void {
 }
 
 fn alloc_impl(num_bytes: u64, comptime aligned: bool, p: purpose) []u8 {
-    var current_base = sabaton.near("pmm_head").read(u64);
+    if (std.Target.current.os.tag == .uefi) {
+        const mem = sabaton.vital(@import("root").allocator.alignedAlloc(u8, 0x1000, num_bytes), "PMM allocation on UEFI", true);
+        std.mem.set(u8, mem, 0);
+        return mem;
+    } else {
+        var current_base = sabaton.near("pmm_head").read(u64);
 
-    verify_purpose(p);
+        verify_purpose(p);
 
-    if (aligned) {
-        const page_size = sabaton.platform.get_page_size();
+        if (aligned) {
+            const page_size = sabaton.platform.get_page_size();
 
-        current_base += page_size - 1;
-        current_base &= ~(page_size - 1);
+            current_base += page_size - 1;
+            current_base &= ~(page_size - 1);
+        }
+
+        sabaton.near("pmm_head").write(current_base + num_bytes);
+        const ptr = @intToPtr([*]u8, current_base);
+        @memset(ptr, 0, num_bytes);
+        return ptr[0..num_bytes];
     }
-
-    sabaton.near("pmm_head").write(current_base + num_bytes);
-    const ptr = @intToPtr([*]u8, current_base);
-    @memset(ptr, 0, num_bytes);
-    return ptr[0..num_bytes];
 }
 
 pub fn alloc_aligned(num_bytes: u64, p: purpose) []align(0x1000) u8 {

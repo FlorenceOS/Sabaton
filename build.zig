@@ -109,6 +109,35 @@ pub fn board_supported(arch: Arch, target_name: []const u8) bool {
     }
 }
 
+pub fn build_uefi(b: *Builder, arch: Arch, path_prefix: []const u8) !*std.build.LibExeObjStep {
+    const filename = b.fmt("Sabaton_UEFI_{s}", .{@tagName(arch)});
+    const platform_path = b.fmt("{s}src/platform/uefi_{s}", .{ path_prefix, @tagName(arch) });
+
+    const exec = b.addExecutable(filename, b.fmt("{s}/main.zig", .{platform_path}));
+
+    exec.addBuildOption([]const u8, "board_name", "UEFI");
+    exec.setBuildMode(.Debug);
+    if (@hasField(@TypeOf(exec.*), "want_lto"))
+        exec.want_lto = false;
+
+    exec.code_model = .small;
+
+    exec.setTarget(cpu_features(arch, .{
+        .cpu_arch = arch,
+        .os_tag = std.Target.Os.Tag.uefi,
+        .abi = std.Target.Abi.msvc,
+    }));
+
+    exec.setMainPkgPath(b.fmt("{s}src/", .{path_prefix}));
+    exec.setOutputDir(b.cache_root);
+
+    exec.disable_stack_probing = true;
+
+    exec.install();
+
+    return exec;
+}
+
 pub fn build_elf(b: *Builder, arch: Arch, target_name: []const u8, path_prefix: []const u8) !*std.build.LibExeObjStep {
     if (!board_supported(arch, target_name)) return error.UnsupportedBoard;
 
@@ -252,6 +281,22 @@ fn qemu_pi3_aarch64(b: *Builder, desc: []const u8, dep_elf: *std.build.LibExeObj
     command_step.dependOn(&run_step.step);
 }
 
+fn qemu_uefi_aarch64(b: *Builder, desc: []const u8, dep: *std.build.LibExeObjStep) !void {
+    const command_step = b.step("uefi", desc);
+
+    const exec_path = b.getInstallPath(dep.install_step.?.dest_dir, dep.out_filename);
+
+    const params = &[_][]const u8{
+        // zig fmt: off
+        "./uefidir/uefi.sh", exec_path,
+        // zig fmt: off
+    };
+
+    const run_step = b.addSystemCommand(params);
+    run_step.step.dependOn(&dep.install_step.?.step);
+    command_step.dependOn(&run_step.step);
+}
+
 const Device = struct {
     name: []const u8,
     arch: Arch,
@@ -269,14 +314,20 @@ pub fn build(b: *Builder) !void {
     try qemu_aarch64(
         b,
         "virt",
-        "Run aarch64 sabaton on for the qemu virt board",
+        "Run aarch64 sabaton for the qemu virt board",
         try build_elf(b, .aarch64, "virt", "./"),
     );
     
     try qemu_pi3_aarch64(
         b,
-        "Run aarch64 sabaton on for the qemu raspi3 board",
+        "Run aarch64 sabaton for the qemu raspi3 board",
         try build_elf(b, .aarch64, "pi3", "./"),
+    );
+
+    try qemu_uefi_aarch64(
+        b,
+        "Run aarch64 sabaton for UEFI",
+        try build_uefi(b, .aarch64, "./"),
     );
 
     {
