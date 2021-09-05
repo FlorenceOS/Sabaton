@@ -116,7 +116,7 @@ pub fn build_uefi(b: *Builder, arch: Arch, path_prefix: []const u8) !*std.build.
     const exec = b.addExecutable(filename, b.fmt("{s}/main.zig", .{platform_path}));
 
     exec.addBuildOption([]const u8, "board_name", "UEFI");
-    exec.setBuildMode(.Debug);
+    exec.setBuildMode(.ReleaseSmall);
     if (@hasField(@TypeOf(exec.*), "want_lto"))
         exec.want_lto = false;
 
