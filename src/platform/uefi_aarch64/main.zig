@@ -23,7 +23,7 @@ pub const io = struct {
 pub fn locateProtocol(comptime T: type) callconv(.Inline) ?*T {
     var ptr: *T = undefined;
     const guid: std.os.uefi.Guid align(8) = T.guid;
-    if (.Success != uefi.system_table.boot_services.?.locateProtocol(&guid, null, @ptrCast(*?*c_void, &ptr))) {
+    if (uefi.system_table.boot_services.?.locateProtocol(&guid, null, @ptrCast(*?*c_void, &ptr)) != .Success) {
         return null;
     }
     return ptr;
@@ -32,7 +32,7 @@ pub fn locateProtocol(comptime T: type) callconv(.Inline) ?*T {
 pub fn handleProtocol(handle: uefi.Handle, comptime T: type) callconv(.Inline) ?*T {
     var ptr: *T = undefined;
     const guid: std.os.uefi.Guid align(8) = T.guid;
-    if (.Success != uefi.system_table.boot_services.?.handleProtocol(handle, &guid, @ptrCast(*?*c_void, &ptr))) {
+    if (uefi.system_table.boot_services.?.handleProtocol(handle, &guid, @ptrCast(*?*c_void, &ptr)) != .Success) {
         return null;
     }
     return ptr;
