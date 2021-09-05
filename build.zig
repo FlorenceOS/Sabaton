@@ -110,7 +110,7 @@ pub fn board_supported(arch: Arch, target_name: []const u8) bool {
 }
 
 pub fn build_uefi(b: *Builder, arch: Arch, path_prefix: []const u8) !*std.build.LibExeObjStep {
-    const filename = b.fmt("Sabaton_UEFI_{s}", .{@tagName(arch)});
+    const filename = "BOOTA64";
     const platform_path = b.fmt("{s}src/platform/uefi_{s}", .{ path_prefix, @tagName(arch) });
 
     const exec = b.addExecutable(filename, b.fmt("{s}/main.zig", .{platform_path}));
@@ -129,7 +129,7 @@ pub fn build_uefi(b: *Builder, arch: Arch, path_prefix: []const u8) !*std.build.
     }));
 
     exec.setMainPkgPath(b.fmt("{s}src/", .{path_prefix}));
-    exec.setOutputDir(b.cache_root);
+    exec.setOutputDir("uefidir/image/EFI/BOOT/");
 
     exec.disable_stack_probing = true;
 
@@ -288,7 +288,15 @@ fn qemu_uefi_aarch64(b: *Builder, desc: []const u8, dep: *std.build.LibExeObjSte
 
     const params = &[_][]const u8{
         // zig fmt: off
-        "./uefidir/uefi.sh", exec_path,
+        "qemu-system-aarch64",
+        "-M", "virt",
+        "-m", "4G",
+        "-cpu", "cortex-a57",
+        "-serial", "stdio",
+        "-device", "ramfb",
+        "-drive", b.fmt("if=pflash,format=raw,file={s}/QEMU_EFI.fd,readonly=on", .{std.os.getenv("AARCH64_EDK_PATH").?}),
+        "-drive", b.fmt("if=pflash,format=raw,file={s}/QEMU_VARS.fd", .{std.os.getenv("AARCH64_EDK_PATH").?}),
+        "-hdd", "fat:rw:uefidir/image",
         // zig fmt: off
     };
 
