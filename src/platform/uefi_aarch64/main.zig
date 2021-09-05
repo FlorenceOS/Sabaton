@@ -245,6 +245,15 @@ const MemoryMap = struct {
         var iter = Iterator{ .map = self };
 
         while (iter.next()) |e| {
+            if (sabaton.safety) {
+                sabaton.print_hex(e.physical_start);
+                sabaton.puts(", ");
+                sabaton.print_hex(e.physical_start + e.number_of_pages * page_size);
+                sabaton.puts(": ");
+                sabaton.print_str(@tagName(e.type));
+                sabaton.puts("\n");
+            }
+
             const memory_type: sabaton.paging.MemoryType = switch (e.type) {
                 .ReservedMemoryType,
                 .LoaderCode,
