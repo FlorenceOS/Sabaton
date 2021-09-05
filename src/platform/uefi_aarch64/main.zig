@@ -355,7 +355,9 @@ pub fn main() noreturn {
 
     uefiVital(uefi.system_table.boot_services.?.exitBootServices(uefi.handle, memmap.key), "Exiting boot services");
 
-    conout = null; // We can't call UEFI after exiting boot services
+    // We can't call UEFI after exiting boot services
+    conout = null;
+    uefi.system_table.boot_services = null;
 
     sabaton.paging.apply_paging(&paging_root);
 
