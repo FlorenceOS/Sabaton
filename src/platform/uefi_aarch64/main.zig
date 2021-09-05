@@ -128,9 +128,14 @@ pub fn get_page_size() u64 {
 var paging_root: sabaton.paging.Root = undefined;
 
 // O(n^2) but who cares, it's really small code
-fn sortStivale2Memmap(data: []u8) void {
-    const num_entries = data.len / 0x18;
-    if (num_entries > 1) {
+fn sortStivale2Memmap(data_c: []align(8) u8) void {
+    var data = data_c;
+
+    while (true) {
+        const num_entries = data.len / 0x18;
+        if (num_entries < 2)
+            return;
+
         var curr_min_i: usize = 0;
         var curr_min_addr = std.mem.readIntNative(u64, data[0..8]);
 
@@ -148,7 +153,7 @@ fn sortStivale2Memmap(data: []u8) void {
         // Swap the current entry with the smallest one
         std.mem.swap([0x18]u8, data[0..0x18], data[curr_min_i * 0x18 ..][0..0x18]);
 
-        return @call(.{ .modifier = .always_tail }, sortStivale2Memmap, .{data[0x18..]});
+        data = data[0x18..];
     }
 }
 
