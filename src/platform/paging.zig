@@ -241,24 +241,28 @@ pub fn apply_paging(r: *Root) void {
         else => unreachable,
     }
 
-    const tcr: u64 = 0 | (region_size_offset << 0) // T0SZ
-    | (region_size_offset << 16) // T1SZ
-    | (1 << 8) // TTBR0 Inner WB RW-Allocate
-    | (1 << 10) // TTBR0 Outer WB RW-Allocate
-    | (1 << 24) // TTBR1 Inner WB RW-Allocate
-    | (1 << 26) // TTBR1 Outer WB RW-Allocate
-    | (2 << 12) // TTBR0 Inner shareable
-    | (2 << 28) // TTBR1 Inner shareable
-    | (aa64mmfr0 << 32) // intermediate address size
-    | (paging_granule_br0 << 14) // TTBR0 granule
-    | (paging_granule_br1 << 30) // TTBR1 granule
-    | (1 << 56) // Fault on TTBR1 access from EL0
-    | (0 << 55) // Don't fault on TTBR0 access from EL0
+    // zig fmt: off
+    const tcr: u64 = 0
+        | (region_size_offset << 0) // T0SZ
+        | (region_size_offset << 16) // T1SZ
+        | (1 << 8) // TTBR0 Inner WB RW-Allocate
+        | (1 << 10) // TTBR0 Outer WB RW-Allocate
+        | (1 << 24) // TTBR1 Inner WB RW-Allocate
+        | (1 << 26) // TTBR1 Outer WB RW-Allocate
+        | (2 << 12) // TTBR0 Inner shareable
+        | (2 << 28) // TTBR1 Inner shareable
+        | (aa64mmfr0 << 32) // intermediate address size
+        | (paging_granule_br0 << 14) // TTBR0 granule
+        | (paging_granule_br1 << 30) // TTBR1 granule
+        | (1 << 56) // Fault on TTBR1 access from EL0
+        | (0 << 55) // Don't fault on TTBR0 access from EL0
     ;
 
-    const mair: u64 = 0 | (0b11111111 << 0) // Normal, Write-back RW-Allocate non-transient
-    | (0b00000000 << 8) // Device, nGnRnE
+    const mair: u64 = 0
+        | (0b11111111 << 0) // Normal, Write-back RW-Allocate non-transient
+        | (0b00000000 << 8) // Device, nGnRnE
     ;
+    // zig fmt: on
 
     if (sabaton.debug) {
         sabaton.log("Enabling paging... ", .{});
