@@ -297,6 +297,9 @@ fn qemu_uefi_aarch64(b: *Builder, desc: []const u8, dep: *std.build.LibExeObjSte
         "-drive", b.fmt("if=pflash,format=raw,file={s}/QEMU_EFI.fd,readonly=on", .{std.os.getenv("AARCH64_EDK_PATH").?}),
         "-drive", b.fmt("if=pflash,format=raw,file={s}/QEMU_VARS.fd", .{std.os.getenv("AARCH64_EDK_PATH").?}),
         "-hdd", "fat:rw:uefidir/image",
+        "-usb",
+        "-device", "usb-ehci",
+        "-device", "usb-kbd",
         // zig fmt: off
     };
 
