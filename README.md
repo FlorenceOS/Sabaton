@@ -1,5 +1,7 @@
 # Sabaton bootloader
 
+[Discord server](https://discord.gg/uaXtZVku2E)
+
 Sabaton is a Stivale2 bootloader targeting different aarch64 enviroments.
 
 ## Differences from stivale2
