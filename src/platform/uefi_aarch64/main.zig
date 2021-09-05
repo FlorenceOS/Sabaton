@@ -162,7 +162,7 @@ pub fn main() noreturn {
     paging_root = sabaton.paging.init_paging();
 
     // Load the kernel into memory
-    kernel_elf_file.load(kernel_memory_bytes);
+    kernel_elf_file.load(kernel_memory_bytes, &paging_root);
 
     // Get a framebuffer if requested by the kernel
     @import("framebuffer.zig").init();

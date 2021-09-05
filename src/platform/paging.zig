@@ -139,7 +139,7 @@ pub fn decode(e: pte, bottomlevel: bool) Decoded {
     return .Table;
 }
 
-pub fn map(vaddr_c: u64, paddr_c: u64, size_c: u64, perm: Perms, mt: MemoryType, in_root: ?*Root) void {
+pub fn map(vaddr_c: u64, paddr_c: u64, size_c: u64, perm: Perms, mt: MemoryType, in_root: *Root) void {
     const page_size = sabaton.platform.get_page_size();
     var vaddr = vaddr_c;
     var paddr = paddr_c;
@@ -147,13 +147,7 @@ pub fn map(vaddr_c: u64, paddr_c: u64, size_c: u64, perm: Perms, mt: MemoryType,
     size += page_size - 1;
     size &= ~(page_size - 1);
 
-    var root: table_ptr = undefined;
-    if (in_root) |r| {
-        root = choose_root(r, vaddr);
-    } else {
-        const roots = current_root();
-        root = choose_root(&roots, vaddr);
-    }
+    const root = choose_root(in_root, vaddr);
 
     const levels: usize =
         switch (page_size) {
