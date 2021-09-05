@@ -63,7 +63,7 @@ pub fn panic(reason: []const u8, stacktrace: ?*std.builtin.StackTrace) noreturn 
     unreachable;
 }
 
-const Elf = @import("lib/elf.zig").Elf;
+pub const Elf = @import("lib/elf.zig").Elf;
 const sabaton = @This();
 
 pub const Stivale2tag = packed struct {
@@ -182,7 +182,7 @@ pub fn install_evt() void {
     sabaton.puts("Installed EVT\n");
 }
 
-var kernel_file_tag: packed struct {
+pub var kernel_file_tag: packed struct {
     tag: Stivale2tag = .{
         .ident = 0xe599d90c2975584a,
         .next = null,
