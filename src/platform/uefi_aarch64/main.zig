@@ -354,16 +354,5 @@ pub fn main() noreturn {
 
     sabaton.paging.apply_paging(&paging_root);
 
-    asm volatile (
-        \\  MSR SPSel, XZR
-        \\  DMB SY
-        \\  CBZ %[stack], 1f
-        \\  MOV SP, %[stack]
-        \\1:BR %[entry]
-        :
-        : [entry] "r" (kernel_elf_file.entry()),
-          [stack] "r" (kernel_stivale2_header.stack),
-          [_] "{X0}" (sabaton.stivale2_info)
-    );
-    unreachable;
+    sabaton.enterKernel(&kernel_elf_file, kernel_stivale2_header.stack);
 }
