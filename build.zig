@@ -24,7 +24,7 @@ const Arch = if (@hasField(builtin, "Arch")) builtin.Arch else std.Target.Cpu.Ar
 const TransformFileCommandStep = struct {
     step: std.build.Step,
     output_path: []const u8,
-    fn run_command(s: *std.build.Step) !void {}
+    fn run_command(_: *std.build.Step) !void {}
 };
 
 const custom_build_id: std.build.Step.Id =
@@ -283,8 +283,6 @@ fn qemu_pi3_aarch64(b: *Builder, desc: []const u8, dep_elf: *std.build.LibExeObj
 
 fn qemu_uefi_aarch64(b: *Builder, desc: []const u8, dep: *std.build.LibExeObjStep) !void {
     const command_step = b.step("uefi", desc);
-
-    const exec_path = b.getInstallPath(dep.install_step.?.dest_dir, dep.out_filename);
 
     const params = &[_][]const u8{
         // zig fmt: off

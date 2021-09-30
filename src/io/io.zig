@@ -9,14 +9,17 @@ pub const putchar = sabaton.platform.io.putchar;
 
 const Printer = struct {
     pub fn writeAll(self: *const Printer, str: []const u8) !void {
+        _ = self;
         print_str(str);
     }
 
     pub fn print(self: *const Printer, comptime format: []const u8, args: anytype) !void {
+        _ = self;
         log(format, args);
     }
 
     pub fn writeByteNTimes(self: *const Printer, val: u8, num: usize) !void {
+        _ = self;
         var i: usize = 0;
         while (i < num) : (i += 1) {
             putchar(val);
@@ -32,6 +35,8 @@ usingnamespace if (sabaton.debug) struct {
     }
 } else struct {
     pub fn log(comptime format: []const u8, args: anytype) void {
+        _ = args;
+        _ = format;
         @compileError("Log called!");
     }
 };

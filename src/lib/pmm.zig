@@ -42,7 +42,7 @@ comptime {
 const sabaton = @import("root").sabaton;
 const std = @import("std");
 
-const pmm_state = enum {
+const pmm_state = enum(u2) {
     Prekernel = 0,
     KernelPages,
     PageTables,

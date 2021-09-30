@@ -102,7 +102,7 @@ pub fn add_tag(tag: *Stivale2tag) void {
 var paging_root: paging.Root = undefined;
 
 comptime {
-    if (comptime sabaton.safety) {
+    if (sabaton.safety) {
         asm (
             \\.section .text
             \\.balign 0x800

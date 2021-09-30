@@ -79,6 +79,7 @@ fn get_dram_size() u64 {
 }
 
 pub fn add_platform_tags(kernel_header: *sabaton.Stivale2hdr) void {
+    _ = kernel_header;
     sabaton.add_tag(&sabaton.near("uart_tag").addr(sabaton.Stivale2tag)[0]);
     sabaton.add_tag(&sabaton.near("devicetree_tag").addr(sabaton.Stivale2tag)[0]);
 }

@@ -49,6 +49,7 @@ pub fn get_kernel() [*]u8 {
 }
 
 pub fn add_platform_tags(kernel_header: *sabaton.Stivale2hdr) void {
+    _ = kernel_header;
     sabaton.add_tag(&sabaton.near("uart_tag").addr(sabaton.Stivale2tag)[0]);
 }
 

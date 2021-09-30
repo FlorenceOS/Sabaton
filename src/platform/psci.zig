@@ -14,7 +14,7 @@ pub fn wake_cpu(entry: u64, cpunum: u64, context: u64, comptime mode: Mode) u64 
         sabaton.log_hex("entry:         ", entry);
         sabaton.log_hex("context:       ", context);
     }
-    const result = asm volatile (comptime switch (mode) {
+    const result = asm volatile (switch (mode) {
             .HVC => "HVC #0",
             .SMC => "SMC #0",
         }
