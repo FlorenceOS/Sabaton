@@ -367,7 +367,7 @@ pub fn build(b: *Builder) !void {
         };
 
         for (blob_devices) |dev| {
-            const elf_file = try build_elf(b, .aarch64, dev.name, "./");
+            const elf_file = try build_elf(b, dev.arch, dev.name, "./");
             const blob_file = try blob(b, elf_file, .NotPadded);
             const s = b.step(dev.name, b.fmt("Build the blob for {s}", .{dev.name}));
             s.dependOn(&blob_file.step);
