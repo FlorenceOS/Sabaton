@@ -9,7 +9,7 @@ pub fn get_ticks() usize {
 }
 
 pub fn get_freq() usize {
-    return asm volatile ("MRS %[out], CNTFRQ_EL0"
+    return asm ("MRS %[out], CNTFRQ_EL0"
         : [out] "=r" (-> usize)
     );
 }
