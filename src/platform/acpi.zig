@@ -24,18 +24,6 @@ fn print_sig(table: []const u8) void {
     }
 }
 
-pub fn try_get_addr(tables: []u8, sig: []const u8) ?usize {
-    const table = find_table(tables, signature(sig));
-    return @ptrToInt((table orelse {
-        if (sabaton.debug) {
-            sabaton.puts("Couldn't find table with signature ");
-            print_sig(sig);
-            sabaton.putchar('\n');
-        }
-        return null;
-    }).ptr);
-}
-
 fn parse_root_sdt(comptime T: type, addr: usize) !void {
     const sdt = try map_sdt(addr);
 
