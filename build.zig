@@ -3,8 +3,6 @@ const Builder = std.build.Builder;
 const builtin = std.builtin;
 const assert = std.debug.assert;
 
-const Arch = if (@hasField(builtin, "Arch")) builtin.Arch else std.Target.Cpu.Arch;
-
 // var source_blob: *std.build.RunStep = undefined;
 // var source_blob_path: []u8 = undefined;
 
@@ -27,17 +25,11 @@ const TransformFileCommandStep = struct {
     fn run_command(_: *std.build.Step) !void {}
 };
 
-const custom_build_id: std.build.Step.Id =
-    if (@hasField(std.build.Step.Id, "Custom"))
-    .Custom
-else
-    .custom;
-
 fn make_transform(b: *Builder, dep: *std.build.Step, command: [][]const u8, output_path: []const u8) !*TransformFileCommandStep {
     const transform = try b.allocator.create(TransformFileCommandStep);
 
     transform.output_path = output_path;
-    transform.step = std.build.Step.init(custom_build_id, "", b.allocator, TransformFileCommandStep.run_command);
+    transform.step = std.build.Step.init(.custom, "", b.allocator, TransformFileCommandStep.run_command);
 
     const command_step = b.addSystemCommand(command);
 
@@ -47,7 +39,7 @@ fn make_transform(b: *Builder, dep: *std.build.Step, command: [][]const u8, outp
     return transform;
 }
 
-fn cpu_features(arch: Arch, ctarget: std.zig.CrossTarget) std.zig.CrossTarget {
+fn cpu_features(arch: std.Target.Cpu.Arch, ctarget: std.zig.CrossTarget) std.zig.CrossTarget {
     var disabled_features = std.Target.Cpu.Feature.Set.empty;
     var enabled_feautres = std.Target.Cpu.Feature.Set.empty;
 
@@ -68,7 +60,7 @@ fn cpu_features(arch: Arch, ctarget: std.zig.CrossTarget) std.zig.CrossTarget {
     };
 }
 
-fn freestanding_target(elf: *std.build.LibExeObjStep, arch: Arch, do_code_model: bool) void {
+fn freestanding_target(elf: *std.build.LibExeObjStep, arch: std.Target.Cpu.Arch, do_code_model: bool) void {
     if (arch == .aarch64) {
         // We don't need the code model in asm blobs
         if (do_code_model)
@@ -94,7 +86,7 @@ fn file_ref(filename: []const u8) if (takes_new_file_ref()) std.build.FileSource
     }
 }
 
-pub fn board_supported(arch: Arch, target_name: []const u8) bool {
+pub fn board_supported(arch: std.Target.Cpu.Arch, target_name: []const u8) bool {
     switch (arch) {
         .aarch64 => {
             if (std.mem.eql(u8, target_name, "virt"))
@@ -103,19 +95,22 @@ pub fn board_supported(arch: Arch, target_name: []const u8) bool {
                 return true;
             if (std.mem.eql(u8, target_name, "pine"))
                 return true;
-            return false;
         },
-        else => return false,
+        else => {},
     }
+    return false;
 }
 
-pub fn build_uefi(b: *Builder, arch: Arch, path_prefix: []const u8) !*std.build.LibExeObjStep {
+pub fn build_uefi(b: *Builder, arch: std.Target.Cpu.Arch, path_prefix: []const u8) !*std.build.LibExeObjStep {
     const filename = "BOOTA64";
     const platform_path = b.fmt("{s}src/platform/uefi_{s}", .{ path_prefix, @tagName(arch) });
 
     const exec = b.addExecutable(filename, b.fmt("{s}/main.zig", .{platform_path}));
 
-    exec.addBuildOption([]const u8, "board_name", "UEFI");
+    var options = b.addOptions();
+    options.addOption([]const u8, "board_name", "UEFI");
+    exec.addOptions("build_options", options);
+
     exec.setBuildMode(.ReleaseSmall);
     if (@hasField(@TypeOf(exec.*), "want_lto"))
         exec.want_lto = false;
@@ -138,7 +133,7 @@ pub fn build_uefi(b: *Builder, arch: Arch, path_prefix: []const u8) !*std.build.
     return exec;
 }
 
-pub fn build_elf(b: *Builder, arch: Arch, target_name: []const u8, path_prefix: []const u8) !*std.build.LibExeObjStep {
+pub fn build_elf(b: *Builder, arch: std.Target.Cpu.Arch, target_name: []const u8, path_prefix: []const u8) !*std.build.LibExeObjStep {
     if (!board_supported(arch, target_name)) return error.UnsupportedBoard;
 
     const elf_filename = b.fmt("Sabaton_{s}_{s}.elf", .{ target_name, @tagName(arch) });
@@ -148,7 +143,10 @@ pub fn build_elf(b: *Builder, arch: Arch, target_name: []const u8, path_prefix: 
     elf.setLinkerScriptPath(file_ref(b.fmt("{s}/linker.ld", .{platform_path})));
     elf.addAssemblyFile(b.fmt("{s}/entry.S", .{platform_path}));
 
-    elf.addBuildOption([]const u8, "board_name", target_name);
+    var options = b.addOptions();
+    options.addOption([]const u8, "board_name", target_name);
+    elf.addOptions("build_options", options);
+
     freestanding_target(elf, arch, true);
     elf.setBuildMode(.ReleaseSmall);
     if (@hasField(@TypeOf(elf.*), "want_lto"))
@@ -210,7 +208,7 @@ fn blob(b: *Builder, elf: *std.build.LibExeObjStep, mode: pad_mode) !*TransformF
     return section_blob(b, elf, mode, ".blob");
 }
 
-fn assembly_blob(b: *Builder, arch: Arch, name: []const u8, asm_file: []const u8) !*TransformFileCommandStep {
+fn assembly_blob(b: *Builder, arch: std.Target.Cpu.Arch, name: []const u8, asm_file: []const u8) !*TransformFileCommandStep {
     const elf_filename = b.fmt("{s}_{s}.elf", .{ name, @tagName(arch) });
 
     const elf = b.addExecutable(elf_filename, null);
@@ -228,7 +226,7 @@ fn assembly_blob(b: *Builder, arch: Arch, name: []const u8, asm_file: []const u8
     return blob(b, elf, .NotPadded);
 }
 
-pub fn build_blob(b: *Builder, arch: Arch, target_name: []const u8, path_prefix: []const u8) !*TransformFileCommandStep {
+pub fn build_blob(b: *Builder, arch: std.Target.Cpu.Arch, target_name: []const u8, path_prefix: []const u8) !*TransformFileCommandStep {
     const elf = try build_elf(b, arch, target_name, path_prefix);
     return blob(b, elf, .Padded);
 }
@@ -308,12 +306,12 @@ fn qemu_uefi_aarch64(b: *Builder, desc: []const u8, dep: *std.build.LibExeObjSte
 
 const Device = struct {
     name: []const u8,
-    arch: Arch,
+    arch: std.Target.Cpu.Arch,
 };
 
 const AssemblyBlobSpec = struct {
     name: []const u8,
-    arch: Arch,
+    arch: std.Target.Cpu.Arch,
     path: []const u8,
 };
 

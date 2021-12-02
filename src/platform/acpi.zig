@@ -24,16 +24,6 @@ fn print_sig(table: []const u8) void {
     }
 }
 
-fn parse_root_sdt(comptime T: type, addr: usize) !void {
-    const sdt = try map_sdt(addr);
-
-    var offset: u64 = 36;
-
-    while (offset + @sizeOf(T) <= sdt.len) : (offset += @sizeOf(T)) {
-        try parse_sdt(std.mem.readInt(T, sdt.to_slice()[offset..][0..@sizeOf(T)], sabaton.endian));
-    }
-}
-
 fn fixup_root(comptime T: type, root_table: []u8, acpi_tables_c: []u8) void {
     var acpi_tables = acpi_tables_c;
     var offset: u64 = 36;

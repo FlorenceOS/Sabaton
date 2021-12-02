@@ -1,5 +1,5 @@
 comptime {
-    if (std.Target.current.os.tag != .uefi) {
+    if (@import("builtin").target.os.tag != .uefi) {
         asm (
             \\.extern __pmm_base
             \\.extern __dram_base
@@ -115,7 +115,7 @@ fn verify_purpose(p: purpose) void {
 }
 
 fn alloc_impl(num_bytes: u64, comptime aligned: bool, p: purpose) []u8 {
-    if (comptime (std.Target.current.os.tag == .uefi)) {
+    if (comptime (@import("builtin").target.os.tag == .uefi)) {
         const mem = sabaton.vital(@import("root").allocator.alignedAlloc(u8, 0x1000, num_bytes), "PMM allocation on UEFI", true);
         std.mem.set(u8, mem, 0);
         return mem;

@@ -20,7 +20,7 @@ pub const io = struct {
     }
 };
 
-pub fn locateProtocol(comptime T: type) callconv(.Inline) ?*T {
+pub inline fn locateProtocol(comptime T: type) ?*T {
     var ptr: *T = undefined;
     const guid: std.os.uefi.Guid align(8) = T.guid;
     if (uefi.system_table.boot_services.?.locateProtocol(&guid, null, @ptrCast(*?*c_void, &ptr)) != .Success) {
@@ -29,7 +29,7 @@ pub fn locateProtocol(comptime T: type) callconv(.Inline) ?*T {
     return ptr;
 }
 
-pub fn handleProtocol(handle: uefi.Handle, comptime T: type) callconv(.Inline) ?*T {
+pub inline fn handleProtocol(handle: uefi.Handle, comptime T: type) ?*T {
     var ptr: *T = undefined;
     const guid: std.os.uefi.Guid align(8) = T.guid;
     if (uefi.system_table.boot_services.?.handleProtocol(handle, &guid, @ptrCast(*?*c_void, &ptr)) != .Success) {
@@ -71,14 +71,16 @@ pub fn uefiVitalFail(status: uefi.Status, context: [*:0]const u8) noreturn {
     unreachable;
 }
 
-pub const Alloc = struct {
-    stdalloc: std.mem.Allocator = .{
-        .allocFn = allocate,
-        .resizeFn = resize,
+pub const allocator_impl = struct {
+    vtab: std.mem.Allocator.VTable = .{
+        .alloc = allocate,
+        .resize = resize,
+        .free = free,
     },
 
-    fn allocate(self_alloc: *std.mem.Allocator, len: usize, ptr_align: u29, len_align: u29, ret_addr: usize) std.mem.Allocator.Error![]u8 {
-        const self = @fieldParentPtr(@This(), "stdalloc", self_alloc);
+    fn allocate(_: *c_void, len: usize, ptr_align: u29, len_align: u29, ret_addr: usize) std.mem.Allocator.Error![]u8 {
+        _ = ret_addr;
+        _ = len_align;
 
         var ptr: [*]u8 = undefined;
 
@@ -91,15 +93,29 @@ pub const Alloc = struct {
         return ptr[0..len];
     }
 
-    fn resize(self_alloc: *std.mem.Allocator, old_mem: []u8, old_align: u29, new_size: usize, len_align: u29, ret_addr: usize) std.mem.Allocator.Error!usize {
-        const self = @fieldParentPtr(@This(), "stdalloc", self_alloc);
+    fn resize(_: *c_void, old_mem: []u8, old_align: u29, new_size: usize, len_align: u29, ret_addr: usize) ?usize {
+        _ = ret_addr;
+        _ = len_align;
+        _ = new_size;
+        _ = old_align;
+        _ = old_mem;
         sabaton.puts("allocator resize!!\n");
         @panic("");
     }
-};
 
-var allocator_impl = Alloc{};
-pub var allocator = &allocator_impl.stdalloc;
+    fn free(_: *c_void, old_mem: []u8, old_align: u29, ret_addr: usize) void {
+        _ = ret_addr;
+        _ = old_align;
+        _ = old_mem;
+        sabaton.puts("allocator free!!\n");
+        @panic("");
+    }
+}{};
+
+pub var allocator = std.mem.Allocator{
+    .ptr = undefined,
+    .vtable = &allocator_impl.vtab,
+};
 
 fn findFSRoot() *uefi.protocols.FileProtocol {
     // zig fmt: off

@@ -25,8 +25,8 @@ pub const io = platform.io;
 pub const debug = @import("builtin").mode == .Debug;
 pub const safety = std.debug.runtime_safety;
 
-pub const arch = if (@hasField(std.builtin, "arch")) std.builtin.arch else std.Target.current.cpu.arch;
-pub const endian = if (@hasField(std.builtin, "endian")) std.builtin.endian else arch.endian();
+pub const arch = @import("builtin").target.cpu.arch;
+pub const endian = arch.endian();
 
 pub const upper_half_phys_base = 0xFFFF800000000000;
 
@@ -73,7 +73,7 @@ pub const Stivale2tag = packed struct {
 
 const InfoStruct = struct {
     brand: [64]u8 = pad_str("Sabaton - Forged in Valhalla by the hammer of Thor", 64),
-    version: [64]u8 = pad_str(@import("build_options").board_name ++ " - " ++ @tagName(std.builtin.mode), 64),
+    version: [64]u8 = pad_str(@import("build_options").board_name ++ " - " ++ @tagName(@import("builtin").mode), 64),
     tags: ?*Stivale2tag = null,
 };
 
@@ -269,7 +269,7 @@ pub fn main() noreturn {
     enterKernel(&kernel_elf, kernel_header.stack);
 }
 
-pub fn enterKernel(kernel_elf: *const Elf, stack: u64) callconv(.Inline) noreturn {
+pub inline fn enterKernel(kernel_elf: *const Elf, stack: u64) noreturn {
     asm volatile (
         \\  MSR SPSel, XZR
         \\  DMB SY

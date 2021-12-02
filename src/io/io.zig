@@ -28,18 +28,18 @@ const Printer = struct {
     pub const Error = anyerror;
 };
 
-usingnamespace if (sabaton.debug) struct {
+pub const log = if (sabaton.debug) struct {
     pub fn log(comptime format: []const u8, args: anytype) void {
         var printer = Printer{};
         fmt.format(printer, format, args) catch unreachable;
     }
-} else struct {
+}.log else struct {
     pub fn log(comptime format: []const u8, args: anytype) void {
         _ = args;
         _ = format;
         @compileError("Log called!");
     }
-};
+}.log;
 
 pub fn print_chars(ptr: [*]const u8, num: usize) void {
     var i: usize = 0;

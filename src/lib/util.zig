@@ -35,6 +35,7 @@ pub fn strlen(str: [*:0]u8) usize {
 }
 
 pub fn near(comptime name: []const u8) type {
+    _ = name;
     return struct {
         pub fn read(comptime t: type) t {
             return asm ("LDR %[out], " ++ name ++ "\n\t"
