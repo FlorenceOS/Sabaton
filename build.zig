@@ -3,22 +3,6 @@ const Builder = std.build.Builder;
 const builtin = std.builtin;
 const assert = std.debug.assert;
 
-// var source_blob: *std.build.RunStep = undefined;
-// var source_blob_path: []u8 = undefined;
-
-// fn make_source_blob(b: *Builder) void {
-//   source_blob_path =
-//     std.mem.concat(b.allocator, u8,
-//       &[_][]const u8{ b.cache_root, "/sources.tar" }
-//     ) catch unreachable;
-
-//   source_blob = b.addSystemCommand(
-//     &[_][]const u8 {
-//       "tar", "--no-xattrs", "-cf", source_blob_path, "src", "build.zig",
-//     },
-//   );
-// }
-
 const TransformFileCommandStep = struct {
     step: std.build.Step,
     output_path: []const u8,
@@ -158,8 +142,6 @@ pub fn build_elf(b: *Builder, arch: std.Target.Cpu.Arch, target_name: []const u8
     elf.disable_stack_probing = true;
 
     elf.install();
-
-    //elf.step.dependOn(&source_blob.step);
 
     return elf;
 }
