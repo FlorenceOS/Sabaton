@@ -3,6 +3,14 @@ const Builder = std.build.Builder;
 const builtin = std.builtin;
 const assert = std.debug.assert;
 
+fn here() []const u8 {
+    return std.fs.path.dirname(@src().file) orelse ".";
+}
+
+fn file(comptime p: []const u8) std.build.FileSource {
+    return .{ .path = here() ++ "/" ++ p };
+}
+
 const TransformFileCommandStep = struct {
     step: std.build.Step,
     output_path: []const u8,
@@ -85,9 +93,9 @@ pub fn board_supported(arch: std.Target.Cpu.Arch, target_name: []const u8) bool 
     return false;
 }
 
-pub fn build_uefi(b: *Builder, arch: std.Target.Cpu.Arch, path_prefix: []const u8) !*std.build.LibExeObjStep {
+pub fn build_uefi(b: *Builder, arch: std.Target.Cpu.Arch) !*std.build.LibExeObjStep {
     const filename = "BOOTA64";
-    const platform_path = b.fmt("{s}src/platform/uefi_{s}", .{ path_prefix, @tagName(arch) });
+    const platform_path = b.fmt(here() ++ "/src/platform/uefi_{s}", .{@tagName(arch)});
 
     const exec = b.addExecutable(filename, b.fmt("{s}/main.zig", .{platform_path}));
 
@@ -107,7 +115,7 @@ pub fn build_uefi(b: *Builder, arch: std.Target.Cpu.Arch, path_prefix: []const u
         .abi = std.Target.Abi.msvc,
     }));
 
-    exec.setMainPkgPath(b.fmt("{s}src/", .{path_prefix}));
+    exec.setMainPkgPath(here() ++ "/src/");
     exec.setOutputDir("uefidir/image/EFI/BOOT/");
 
     exec.disable_stack_probing = true;
@@ -117,11 +125,11 @@ pub fn build_uefi(b: *Builder, arch: std.Target.Cpu.Arch, path_prefix: []const u
     return exec;
 }
 
-pub fn build_elf(b: *Builder, arch: std.Target.Cpu.Arch, target_name: []const u8, path_prefix: []const u8) !*std.build.LibExeObjStep {
+pub fn build_elf(b: *Builder, arch: std.Target.Cpu.Arch, target_name: []const u8) !*std.build.LibExeObjStep {
     if (!board_supported(arch, target_name)) return error.UnsupportedBoard;
 
     const elf_filename = b.fmt("Sabaton_{s}_{s}.elf", .{ target_name, @tagName(arch) });
-    const platform_path = b.fmt("{s}src/platform/{s}_{s}", .{ path_prefix, target_name, @tagName(arch) });
+    const platform_path = b.fmt(here() ++ "/src/platform/{s}_{s}", .{ target_name, @tagName(arch) });
 
     const elf = b.addExecutable(elf_filename, b.fmt("{s}/main.zig", .{platform_path}));
     elf.setLinkerScriptPath(file_ref(b.fmt("{s}/linker.ld", .{platform_path})));
@@ -136,7 +144,7 @@ pub fn build_elf(b: *Builder, arch: std.Target.Cpu.Arch, target_name: []const u8
     if (@hasField(@TypeOf(elf.*), "want_lto"))
         elf.want_lto = false;
 
-    elf.setMainPkgPath(b.fmt("{s}src/", .{path_prefix}));
+    elf.setMainPkgPath(here() ++ "/src/");
     elf.setOutputDir(b.cache_root);
 
     elf.disable_stack_probing = true;
@@ -208,8 +216,8 @@ fn assembly_blob(b: *Builder, arch: std.Target.Cpu.Arch, name: []const u8, asm_f
     return blob(b, elf, .NotPadded);
 }
 
-pub fn build_blob(b: *Builder, arch: std.Target.Cpu.Arch, target_name: []const u8, path_prefix: []const u8) !*TransformFileCommandStep {
-    const elf = try build_elf(b, arch, target_name, path_prefix);
+pub fn build_blob(b: *Builder, arch: std.Target.Cpu.Arch, target_name: []const u8) !*TransformFileCommandStep {
+    const elf = try build_elf(b, arch, target_name);
     return blob(b, elf, .Padded);
 }
 
@@ -304,19 +312,19 @@ pub fn build(b: *Builder) !void {
         b,
         "virt",
         "Run aarch64 sabaton for the qemu virt board",
-        try build_elf(b, .aarch64, "virt", "./"),
+        try build_elf(b, .aarch64, "virt"),
     );
     
     try qemu_pi3_aarch64(
         b,
         "Run aarch64 sabaton for the qemu raspi3 board",
-        try build_elf(b, .aarch64, "pi3", "./"),
+        try build_elf(b, .aarch64, "pi3"),
     );
 
     try qemu_uefi_aarch64(
         b,
         "Run aarch64 sabaton for UEFI",
-        try build_uefi(b, .aarch64, "./"),
+        try build_uefi(b, .aarch64),
     );
 
     {
@@ -347,7 +355,7 @@ pub fn build(b: *Builder) !void {
         };
 
         for (blob_devices) |dev| {
-            const elf_file = try build_elf(b, dev.arch, dev.name, "./");
+            const elf_file = try build_elf(b, dev.arch, dev.name);
             const blob_file = try blob(b, elf_file, .NotPadded);
             const s = b.step(dev.name, b.fmt("Build the blob for {s}", .{dev.name}));
             s.dependOn(&blob_file.step);
