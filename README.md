@@ -10,5 +10,5 @@ Due to the memory layout of aarch64 devices being so far from standardized, a fe
 * All your kernel sections need to be 64K aligned, you don't know the page size (4K, 16K or 64K) ahead of time.
 
 Zig compiler support:
-Oldest confirmed working compiler: 0.9.0-dev+1912ec03
-Newest confirmed working compiler: 0.9.0-dev+1912ec03
+Oldest confirmed working compiler: 0.9.0-dev+9354ad82
+Newest confirmed working compiler: 0.9.0-dev+9354ad82
