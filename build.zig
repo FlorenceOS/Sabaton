@@ -235,6 +235,7 @@ pub fn build(b: *Builder) !void {
     {
         const assembly_blobs = &[_]AssemblyBlobSpec{
             .{ .path = "src/platform/pine_aarch64/identity.S", .name = "identity_pine", .arch = .aarch64 },
+            .{ .path = "src/platform/vision_five_v1_riscv/s1.S", .name = "vision_five_v1_s1", .arch = .riscv64},
         };
 
         for (assembly_blobs) |spec| {
@@ -257,6 +258,7 @@ pub fn build(b: *Builder) !void {
     {
         const blob_devices = &[_]Device{
             .{ .name = "pine", .arch = .aarch64 },
+            .{ .name = "vision_five_v1", .arch = .riscv64 },
         };
 
         for (blob_devices) |dev| {

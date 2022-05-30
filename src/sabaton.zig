@@ -103,32 +103,37 @@ var paging_root: paging.Root = undefined;
 
 comptime {
     if (sabaton.safety) {
-        asm (
-            \\.section .text
-            \\.balign 0x800
-            \\evt_base:
-            \\.balign 0x80; B fatal_error // curr_el_sp0_sync
-            \\.balign 0x80; B fatal_error // curr_el_sp0_irq
-            \\.balign 0x80; B fatal_error // curr_el_sp0_fiq
-            \\.balign 0x80; B fatal_error // curr_el_sp0_serror
-            \\.balign 0x80; B fatal_error // curr_el_spx_sync
-            \\.balign 0x80; B fatal_error // curr_el_spx_irq
-            \\.balign 0x80; B fatal_error // curr_el_spx_fiq
-            \\.balign 0x80; B fatal_error // curr_el_spx_serror
-            \\.balign 0x80; B fatal_error // lower_el_aarch64_sync
-            \\.balign 0x80; B fatal_error // lower_el_aarch64_irq
-            \\.balign 0x80; B fatal_error // lower_el_aarch64_fiq
-            \\.balign 0x80; B fatal_error // lower_el_aarch64_serror
-            \\.balign 0x80; B fatal_error // lower_el_aarch32_sync
-            \\.balign 0x80; B fatal_error // lower_el_aarch32_irq
-            \\.balign 0x80; B fatal_error // lower_el_aarch32_fiq
-            \\.balign 0x80; B fatal_error // lower_el_aarch32_serror
-        );
+        switch(arch) {
+            .aarch64 => {
+                asm (
+                    \\.section .text
+                    \\.balign 0x800
+                    \\evt_base:
+                    \\.balign 0x80; B fatal_error // curr_el_sp0_sync
+                    \\.balign 0x80; B fatal_error // curr_el_sp0_irq
+                    \\.balign 0x80; B fatal_error // curr_el_sp0_fiq
+                    \\.balign 0x80; B fatal_error // curr_el_sp0_serror
+                    \\.balign 0x80; B fatal_error // curr_el_spx_sync
+                    \\.balign 0x80; B fatal_error // curr_el_spx_irq
+                    \\.balign 0x80; B fatal_error // curr_el_spx_fiq
+                    \\.balign 0x80; B fatal_error // curr_el_spx_serror
+                    \\.balign 0x80; B fatal_error // lower_el_aarch64_sync
+                    \\.balign 0x80; B fatal_error // lower_el_aarch64_irq
+                    \\.balign 0x80; B fatal_error // lower_el_aarch64_fiq
+                    \\.balign 0x80; B fatal_error // lower_el_aarch64_serror
+                    \\.balign 0x80; B fatal_error // lower_el_aarch32_sync
+                    \\.balign 0x80; B fatal_error // lower_el_aarch32_irq
+                    \\.balign 0x80; B fatal_error // lower_el_aarch32_fiq
+                    \\.balign 0x80; B fatal_error // lower_el_aarch32_serror
+                );
+            },
+            else => {},
+        }
     }
 }
 
 export fn fatal_error() noreturn {
-    if (comptime sabaton.safety) {
+    if (comptime (sabaton.safety and arch == .aarch64)) {
         const error_count = asm volatile (
             \\ MRS %[res], TPIDR_EL1
             \\ ADD %[res], %[res], 1
@@ -167,8 +172,7 @@ export fn fatal_error() noreturn {
         }
         @panic("Fatal error");
     } else {
-        asm volatile ("ERET");
-        unreachable;
+        while(true) { }
     }
 }
 
