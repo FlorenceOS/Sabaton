@@ -6,6 +6,8 @@ pub const pmm = @import("lib/pmm.zig");
 pub const stivale = @import("lib/stivale.zig");
 
 pub const acpi = @import("platform/acpi.zig");
+pub const cache = @import("platform/cache.zig");
+pub const timer = @import("platform/timer.zig");
 pub const paging = @import("platform/paging.zig");
 pub const pci = @import("platform/pci.zig");
 pub const psci = @import("platform/psci.zig");
