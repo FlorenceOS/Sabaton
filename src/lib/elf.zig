@@ -126,7 +126,7 @@ pub const Elf = struct {
             @memset(mempool.ptr + ph.filesz, 0, ph.memsz - ph.filesz);
 
             const perms = @intToEnum(sabaton.paging.Perms, @intCast(u3, ph.flags & 0x7));
-            sabaton.paging.map(ph.vaddr, @ptrToInt(mempool.ptr), ph.memsz, perms, .memory, root);
+            sabaton.paging.map(ph.vaddr, @ptrToInt(mempool.ptr), ph.memsz, perms, .writeback, root);
 
             // TODO: Relocations
 

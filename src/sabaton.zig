@@ -230,8 +230,8 @@ pub fn main() noreturn {
     platform.map_platform(&paging_root);
     {
         const dram_base = @ptrToInt(dram.ptr);
-        sabaton.paging.map(dram_base, dram_base, dram.len, .rwx, .memory, &paging_root);
-        sabaton.paging.map(dram_base + upper_half_phys_base, dram_base, dram.len, .rwx, .memory, &paging_root);
+        sabaton.paging.map(dram_base, dram_base, dram.len, .rwx, .writeback, &paging_root);
+        sabaton.paging.map(dram_base + upper_half_phys_base, dram_base, dram.len, .rwx, .writeback, &paging_root);
     }
 
     paging.apply_paging(&paging_root);

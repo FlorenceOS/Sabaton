@@ -15,8 +15,9 @@ pub const Perms = enum(u3) {
 };
 
 pub const MemoryType = enum {
-    memory,
+    writeback,
     mmio,
+    writethrough,
 };
 
 pub const Root = struct {
@@ -54,8 +55,9 @@ fn extra_bits(perm: Perms, mt: MemoryType, page_size: usize, botlevel: bool) u64
     if (@enumToInt(perm) & @enumToInt(Perms.w) == 0) bits |= 1 << 7;
     if (@enumToInt(perm) & @enumToInt(Perms.x) == 0) bits |= 1 << 54;
     bits |= switch (mt) {
-        .memory => @as(u64, 0 << 2 | 2 << 8 | 1 << 11),
+        .writeback => @as(u64, 0 << 2 | 2 << 8 | 1 << 11),
         .mmio => @as(u64, 1 << 2 | 2 << 8),
+        .writethrough => @as(u64, 2 << 2 | 2 << 8 | 1 << 11),
     };
     return bits;
 }
@@ -259,8 +261,9 @@ pub fn apply_paging(r: *Root) void {
     ;
 
     const mair: u64 = 0
-        | (0b11111111 << 0) // Normal, Write-back RW-Allocate non-transient
-        | (0b00000000 << 8) // Device, nGnRnE
+        | (0b11111111 << 0)  // Normal, Write-back RW-Allocate non-transient
+        | (0b00000000 << 8)  // Device, nGnRnE
+        | (0b10111011 << 16) // Normal, Write-through RW-Allocate non-transient
     ;
     // zig fmt: on
 
