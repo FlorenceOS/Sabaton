@@ -61,7 +61,7 @@ fn executable_common(b: *Builder, exec: *std.build.LibExeObjStep, board_name: []
 }
 
 pub fn build_uefi(b: *Builder, arch: std.Target.Cpu.Arch) !*std.build.LibExeObjStep {
-    const filename = "BOOTA64";
+    const filename = "BOOTAA64";
     const platform_path = b.fmt(comptime here() ++ "/src/platform/uefi_{s}", .{@tagName(arch)});
 
     const exec = b.addExecutable(filename, b.fmt("{s}/main.zig", .{platform_path}));
