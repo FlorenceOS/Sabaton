@@ -52,7 +52,7 @@ fn executable_common(b: *Builder, exec: *std.build.LibExeObjStep, board_name: []
     if (@hasField(@TypeOf(exec.*), "want_lto"))
         exec.want_lto = false;
 
-    exec.setMainPkgPath(here() ++ "/src/");
+    exec.setMainPkgPath(comptime here() ++ "/src/");
     exec.setOutputDir(b.cache_root);
 
     exec.install();
@@ -62,7 +62,7 @@ fn executable_common(b: *Builder, exec: *std.build.LibExeObjStep, board_name: []
 
 pub fn build_uefi(b: *Builder, arch: std.Target.Cpu.Arch) !*std.build.LibExeObjStep {
     const filename = "BOOTA64";
-    const platform_path = b.fmt(here() ++ "/src/platform/uefi_{s}", .{@tagName(arch)});
+    const platform_path = b.fmt(comptime here() ++ "/src/platform/uefi_{s}", .{@tagName(arch)});
 
     const exec = b.addExecutable(filename, b.fmt("{s}/main.zig", .{platform_path}));
     executable_common(b, exec, "UEFI");
@@ -74,14 +74,14 @@ pub fn build_uefi(b: *Builder, arch: std.Target.Cpu.Arch) !*std.build.LibExeObjS
         .abi = std.Target.Abi.msvc,
     }));
 
-    exec.setOutputDir(here() ++ "/uefidir/image/EFI/BOOT/");
+    exec.setOutputDir(comptime here() ++ "/uefidir/image/EFI/BOOT/");
 
     return exec;
 }
 
 fn build_elf(b: *Builder, arch: std.Target.Cpu.Arch, target_name: []const u8) !*std.build.LibExeObjStep {
     const elf_filename = b.fmt("Sabaton_{s}_{s}.elf", .{ target_name, @tagName(arch) });
-    const platform_path = b.fmt(here() ++ "/src/platform/{s}_{s}", .{ target_name, @tagName(arch) });
+    const platform_path = b.fmt(comptime here() ++ "/src/platform/{s}_{s}", .{ target_name, @tagName(arch) });
 
     const elf = b.addExecutable(elf_filename, b.fmt("{s}/main.zig", .{platform_path}));
     elf.setLinkerScriptPath(.{ .path = b.fmt("{s}/linker.ld", .{platform_path}) });
