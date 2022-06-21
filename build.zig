@@ -127,6 +127,10 @@ pub fn aarch64VirtBlob(b: *Builder) *std.build.InstallRawStep {
 fn qemu_aarch64(b: *Builder, board_name: []const u8, desc: []const u8) !void {
     const command_step = b.step(board_name, desc);
     const blob = aarch64VirtBlob(b);
+
+    const build_step = b.step("qemu-virt-build", "Build the qemu virt blob");
+    build_step.dependOn(&blob.step);
+
     const blob_path = b.getInstallPath(blob.dest_dir, blob.dest_filename);
 
     const run_step = b.addSystemCommand(&[_][]const u8{
