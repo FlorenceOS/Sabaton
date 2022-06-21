@@ -6,6 +6,9 @@ const sabaton = @import("root").sabaton;
 const fmt = @import("std").fmt;
 
 pub const putchar = sabaton.platform.io.putchar;
+pub const getchar = sabaton.platform.io.getchar;
+pub const putchar_bin = sabaton.platform.io.putchar_bin;
+pub const getchar_bin = sabaton.platform.io.getchar_bin;
 
 const Printer = struct {
     pub fn writeAll(self: *const Printer, str: []const u8) !void {
