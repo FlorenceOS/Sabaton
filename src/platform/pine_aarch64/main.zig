@@ -146,3 +146,13 @@ pub fn get_uart_info() io.Info {
         .value = 0x20,
     };
 }
+
+pub fn get_uart_reader() io.Info {
+    const base = 0x1C28000;
+    return .{
+        .uart = @intToPtr(*volatile u32, base),
+        .status = @intToPtr(*volatile u32, base + 0x14),
+        .mask = 0x1,
+        .value = 0x1,
+    };
+}
