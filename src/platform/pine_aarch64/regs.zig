@@ -49,12 +49,33 @@ fn get_data(comptime port: u8) *volatile u32 {
     };
 }
 
-pub fn configure_port(comptime port: u8, comptime pin: u5, io: enum { Input, Output }) void {
+fn get_pull(comptime port: u8, comptime pin: u5) *volatile u32 {
+    const offset = @as(u16, @divTrunc(pin, 16) * 4);
+    return switch (port) {
+        'B' => portio_cpux(0x0038 + offset),
+        'C' => portio_cpux(0x0064 + offset),
+        'D' => portio_cpux(0x0088 + offset),
+        'E' => portio_cpux(0x00AC + offset),
+        'F' => portio_cpux(0x00D0 + offset),
+        'G' => portio_cpux(0x00F4 + offset),
+        'H' => portio_cpux(0x0118 + offset),
+        'L' => portio_cpus(0x001C + offset),
+        else => @compileError("Unknown port!"),
+    };
+}
+
+const PortMode = enum(u3) {
+    Input = 0,
+    Output = 1,
+    Uart = 4,
+};
+
+pub fn configure_port(comptime port: u8, comptime pin: u5, io: PortMode) void {
     comptime {
         verify_port_pin(port, pin);
     }
 
-    const field: u32 = if (io == .Input) 0b000 else 0b001;
+    const field: u32 = @enumToInt(io);
     const config = comptime get_config(port, pin);
     const start_bit = comptime @as(u8, (pin % 8)) * 4;
     config.* = (config.* & ~@as(u32, 0x7 << start_bit)) | (field << start_bit);
@@ -70,6 +91,26 @@ pub fn output_port(comptime port: u8, comptime pin: u5, value: bool) void {
 pub fn input_port(comptime port: u8, comptime pin: u5) bool {
     configure_port(port, pin, .Input);
     return read_port(port, pin);
+}
+
+pub fn pull_port(comptime port: u8, comptime pin: u5, dir: enum { Up, Down }) void {
+    comptime {
+        verify_port_pin(port, pin);
+    }
+
+    const reg = get_pull(port, pin);
+    const bit_idx = @truncate(u4, pin);
+    const shift = @as(u5, bit_idx) * 2;
+
+    const curr_val: u32 = @as(u32, switch (dir) {
+        .Up => 1,
+        .Down => 2,
+    }) << shift;
+
+    const curr_mask = @as(u32, 0x3) << shift;
+    const other_mask = ~curr_mask;
+
+    reg.* = (reg.* & other_mask) | curr_val;
 }
 
 pub fn write_port(comptime port: u8, comptime pin: u5, value: bool) void {
