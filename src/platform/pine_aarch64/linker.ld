@@ -9,10 +9,10 @@ PHDRS {
 
 __uart_base = 0x1C28000;
 __dram_base = 0x40000000;
-__pmm_base = 0;
 
 SECTIONS {
-    . = 0x40000000;
+    . = 0x10000;
+    . += 0x30; /* Boot image header size, thanks... */
     __blob_base = .;
     .blob : {
         *(.text.entry)
@@ -38,11 +38,16 @@ SECTIONS {
         *(.rodata*)
         *(.bss*)
         *(.COMMON)
+        . = ALIGN(0x800);
+        *(.debugger*)
     }: blob
     __blob_end = .;
     . = ALIGN(4K);
     . += 4K;
     __boot_stack = .;
+    . += 4K;
+    __debugger_stack = .;
+    __pmm_base = .;
 
     /DISCARD/ : {
         *(.eh_frame*)

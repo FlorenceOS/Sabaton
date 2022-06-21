@@ -1,5 +1,8 @@
 // aarch64 generic timer
 
+const sabaton = @import("root").sabaton;
+const platform = sabaton.platform;
+
 pub fn init() void {}
 
 pub fn get_ticks() usize {

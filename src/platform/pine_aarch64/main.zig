@@ -2,101 +2,123 @@ pub const sabaton = @import("../../sabaton.zig");
 pub const io = sabaton.io_impl.status_uart_mmio_32;
 pub const panic = sabaton.panic;
 
+pub const ccu = @import("ccu.zig");
 pub const display = @import("display.zig");
+pub const dram = @import("dram.zig");
+pub const keyadc = @import("keyadc.zig");
+pub const led = @import("led.zig");
 pub const smp = @import("smp.zig");
-pub const timer = @import("timer.zig");
+pub const uart = @import("uart.zig");
 
-const led = @import("led.zig");
+const std = @import("std");
+
+const enable_debugger = true;
+
+pub const cacheline_size = 64;
+
+const debugger_entry linksection(".debugger") = @embedFile("../host_aarch64_EL3.bin").*;
+
+pub fn debugBreak() void {
+    if (comptime (enable_debugger)) {
+        asm volatile (
+            \\SMC #5
+        );
+    }
+}
 
 // We know the page size is 0x1000
 pub fn get_page_size() u64 {
     return 0x1000;
 }
 
-fn ccu(offset: u16) *volatile u32 {
-    return @intToPtr(*volatile u32, @as(usize, 0x01C2_0000) + offset);
+fn debuggerSendUart(ptr: [*c]const u8, sz: usize) callconv(.C) void {
+    // No need to flush anything since we're only reading from dcache
+    for (ptr[0..sz]) |c| {
+        sabaton.io_impl.putchar_bin(c);
+    }
 }
 
-fn wait_stable(pll_addr: *volatile u32) void {
-    while ((pll_addr.* & (1 << 28)) == 0) {}
-}
-
-fn init_pll(offset: u16, pll_value: u32) void {
-    const reg = ccu(offset);
-    reg.* = pll_value;
-    wait_stable(reg);
-}
-
-fn clocks_init() void {
-    // Cock and ball torture?
-    // Clock and PLL torture.
-    init_pll(0x0010, 0x83001801); // PLL_VIDEO0
-    init_pll(0x0028, 0x80041811); // PLL_PERIPH0
-    init_pll(0x0040, 0x80C0041A); // PLL_MIPI
-    init_pll(0x0048, 0x83006207); // PLL_DE
-
-    // Cock gating registers?
-    // Clock gating registers.
-    ccu(0x0060).* = 0x33800040; // BUS_CLK_GATING_REG0
-    ccu(0x0064).* = 0x00201818; // BUS_CLK_GATING_REG1
-    ccu(0x0068).* = 0x00000020; // BUS_CLK_GATING_REG2
-    ccu(0x006C).* = 0x00010000; // BUS_CLK_GATING_REG3
-    //ccu(0x0070).* = 0x00000000; // BUS_CLK_GATING_REG4
-
-    ccu(0x0088).* = 0x0100000B; // SMHC0_CLK_REG
-    ccu(0x008C).* = 0x0001000E; // SMHC0_CLK_REG
-    ccu(0x0090).* = 0x01000005; // SMHC0_CLK_REG
-
-    ccu(0x00CC).* = 0x00030303; // USBPHY_CFG_REG
-
-    ccu(0x0104).* = 0x81000000; // DE_CLK_REG
-    ccu(0x0118).* = 0x80000000; // TCON0_CLK_REG
-    ccu(0x0150).* = 0x80000000; // HDMI_CLK_REG
-    ccu(0x0154).* = 0x80000000; // HDMI_SLOW_CLK_REG
-    ccu(0x0168).* = 0x00008001; // MIPI_DSI_CLK_REG
-
-    ccu(0x0224).* = 0x10040000; // PLL_AUDIO_BIAS_REG
-}
-
-fn reset_devices() void {
-    // zig fmt: off
-    const reg0_devs: u32 = 0
-        | (1 << 29) // USB-OHCI0
-        | (1 << 28) // USB-OTG-OHCI
-        | (1 << 25) // USB-EHCI0
-        | (1 << 24) // USB-OTG-EHCI0
-        | (1 << 23) // USB-OTG-Device
-        | (1 << 13) // NAND
-        | (1 << 1) // MIPI_DSI
-    ;
-
-    const reg1_devs: u32 = 0
-        | (1 << 22) // SPINLOCK
-        | (1 << 21) // MSGBOX
-        | (1 << 20) // GPU
-        | (1 << 12) // DE
-        | (1 << 11) // HDMI1
-        | (1 << 10) // HDMI0
-        | (1 << 5) // DEINTERLACE
-        | (1 << 4) // TCON1
-        | (1 << 3) // TCON0
-    ;
-    // zig fmt: on
-
-    ccu(0x02C0).* &= ~reg0_devs;
-    ccu(0x02C4).* &= ~reg1_devs;
-
-    ccu(0x02C0).* |= reg0_devs;
-    ccu(0x02C4).* |= reg1_devs;
+fn debuggerRecvUart(ptr: [*c]u8, sz: usize) callconv(.C) void {
+    // Flush icache after recv, no need to flush dcache since we're not doing dma
+    for (ptr[0..sz]) |*c| {
+        c.* = sabaton.io_impl.getchar_bin();
+    }
+    sabaton.cache.flush(true, false, @ptrToInt(ptr), sz);
 }
 
 export fn _main() linksection(".text.main") noreturn {
-    @call(.{ .modifier = .always_inline }, clocks_init, .{});
-    @call(.{ .modifier = .always_inline }, reset_devices, .{});
-    @call(.{ .modifier = .always_inline }, led.configure_led, .{});
-    // Orange
+    ccu.init();
+    ccu.upclock();
+
+    uart.init();
+
+    const SCTLR_EL3 = asm ("MRS %[out], SCTLR_EL3"
+        : [out] "=r" (-> u64)
+    );
+    sabaton.log_hex("SCTLR_EL3: ", SCTLR_EL3);
+
+    // sabaton.log_hex("PT base: ", sabaton.pmm.alloc_aligned(0x1000, .ReclaimableData).ptr);
+
+    // // Enable MMU
+    // asm volatile ("MSR SCTLR_EL3, %[sctlr]"
+    //     :
+    //     : [sctlr] "r" (SCTLR_EL3 | 1)
+    // );
+
+    // sabaton.puts("Paging enabled");
+
+    if (comptime enable_debugger) {
+        const debugger_stack = asm (
+            \\ADR %[stk], __debugger_stack
+            : [stk] "=r" (-> u64)
+        );
+
+        asm volatile (
+            \\ MSR SPSel, #1
+            \\ MOV SP, %[stk]
+            \\ MSR SPSel, #0
+            :
+            : [stk] "r" (debugger_stack)
+        );
+
+        sabaton.log_hex("Set debugger stack to ", debugger_stack);
+
+        const debugger_init = @ptrCast(
+            fn (
+                fn ([*c]const u8, usize) callconv(.C) void,
+                fn ([*c]u8, usize) callconv(.C) void,
+            ) callconv(.C) void,
+            &debugger_entry[0],
+        );
+
+        sabaton.log_hex("Initializing debugger at ", @ptrToInt(debugger_init));
+
+        debugger_init(
+            debuggerSendUart,
+            debuggerRecvUart,
+        );
+    }
+
+    led.configureLed();
     led.output(.{ .green = true, .red = true, .blue = false });
-    @call(.{ .modifier = .always_inline }, sabaton.main, .{});
+
+    const dram_size = dram.init();
+    _ = dram_size;
+
+    led.output(.{ .green = true, .red = false, .blue = true });
+
+    keyadc.init();
+    while (true) {
+        switch (keyadc.getPressedKey()) {
+            .Up => sabaton.puts("Up button pressed\n"),
+            .Down => sabaton.puts("Down button pressed\n"),
+            else => {},
+        }
+    }
+
+    //sabaton.timer.sleep_us(1_000_000);
+
+    //@call(.{ .modifier = .always_inline }, sabaton.main, .{});
 }
 
 pub fn panic_hook() void {
