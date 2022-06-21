@@ -261,6 +261,7 @@ pub fn build(b: *Builder) !void {
     {
         const blob_devices = &[_]Device{
             .{ .name = "pine", .arch = .aarch64 },
+            .{ .name = "sdm665", .arch = .aarch64 },
         };
 
         for (blob_devices) |dev| {
