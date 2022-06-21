@@ -267,7 +267,7 @@ const MemoryMap = struct {
             }));
         }
 
-        sortStivale2Memmap(stivale2buf[0x18..]);
+        sortStivale2Memmap(stivale2buf[0x18..0x18 * (num_entries.* + 1)]);
     }
 
     fn map_everything(self: *const @This(), root: *sabaton.paging.Root) void {
