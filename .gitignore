@@ -2,4 +2,4 @@ zig-cache/*
 zig-out/*
 test/*
 uefidir/image/kernel.elf
-uefidir/image/EFI/BOOT/BOOTA64.*
+uefidir/image/EFI/BOOT/BOOTAA64.*
