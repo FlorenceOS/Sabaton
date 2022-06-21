@@ -23,7 +23,7 @@ pub const io = struct {
 pub inline fn locateProtocol(comptime T: type) ?*T {
     var ptr: *T = undefined;
     const guid: std.os.uefi.Guid align(8) = T.guid;
-    if (uefi.system_table.boot_services.?.locateProtocol(&guid, null, @ptrCast(*?*c_void, &ptr)) != .Success) {
+    if (uefi.system_table.boot_services.?.locateProtocol(&guid, null, @ptrCast(*?*anyopaque, &ptr)) != .Success) {
         return null;
     }
     return ptr;
@@ -32,13 +32,13 @@ pub inline fn locateProtocol(comptime T: type) ?*T {
 pub inline fn handleProtocol(handle: uefi.Handle, comptime T: type) ?*T {
     var ptr: *T = undefined;
     const guid: std.os.uefi.Guid align(8) = T.guid;
-    if (uefi.system_table.boot_services.?.handleProtocol(handle, &guid, @ptrCast(*?*c_void, &ptr)) != .Success) {
+    if (uefi.system_table.boot_services.?.handleProtocol(handle, &guid, @ptrCast(*?*anyopaque, &ptr)) != .Success) {
         return null;
     }
     return ptr;
 }
 
-pub fn locateConfiguration(guid: uefi.Guid) ?*c_void {
+pub fn locateConfiguration(guid: uefi.Guid) ?*anyopaque {
     const entries = uefi.system_table.configuration_table[0..uefi.system_table.number_of_table_entries];
     for (entries) |e| {
         if (e.vendor_guid.eql(guid))
@@ -78,7 +78,7 @@ pub const allocator_impl = struct {
         .free = free,
     },
 
-    fn allocate(_: *c_void, len: usize, ptr_align: u29, len_align: u29, ret_addr: usize) std.mem.Allocator.Error![]u8 {
+    fn allocate(_: *anyopaque, len: usize, ptr_align: u29, len_align: u29, ret_addr: usize) std.mem.Allocator.Error![]u8 {
         _ = ret_addr;
         _ = len_align;
 
@@ -93,7 +93,7 @@ pub const allocator_impl = struct {
         return ptr[0..len];
     }
 
-    fn resize(_: *c_void, old_mem: []u8, old_align: u29, new_size: usize, len_align: u29, ret_addr: usize) ?usize {
+    fn resize(_: *anyopaque, old_mem: []u8, old_align: u29, new_size: usize, len_align: u29, ret_addr: usize) ?usize {
         _ = ret_addr;
         _ = len_align;
         _ = new_size;
@@ -103,7 +103,7 @@ pub const allocator_impl = struct {
         @panic("");
     }
 
-    fn free(_: *c_void, old_mem: []u8, old_align: u29, ret_addr: usize) void {
+    fn free(_: *anyopaque, old_mem: []u8, old_align: u29, ret_addr: usize) void {
         _ = ret_addr;
         _ = old_align;
         _ = old_mem;
