@@ -42,8 +42,6 @@ fn freestanding_target(elf: *std.build.LibExeObjStep, arch: std.Target.Cpu.Arch,
 }
 
 fn executable_common(b: *Builder, exec: *std.build.LibExeObjStep, board_name: []const u8) void {
-    exec.setBuildMode(.ReleaseSmall);
-
     var options = b.addOptions();
     options.addOption([]const u8, "board_name", board_name);
     exec.addOptions("build_options", options);
