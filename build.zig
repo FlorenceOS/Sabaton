@@ -138,7 +138,7 @@ fn qemu_aarch64(b: *Builder, board_name: []const u8, desc: []const u8) !void {
         "-d", "int",
         "-smp", "8",
         "-device", "ramfb",
-        "-fw_cfg", "opt/Sabaton/kernel,file=test/Flork_stivale2_aarch64",
+        "-kernel", "test/Flork_stivale2_aarch64",
         "-drive", b.fmt("if=pflash,format=raw,file={s},readonly=on", .{blob_path}),
         // zig fmt: on
     });
