@@ -16,6 +16,10 @@ pub fn get_dtb() []u8 {
     return @intToPtr([*]u8, dtb_base)[0..0x100000];
 }
 
+pub fn get_page_size() u64 {
+    return 0x1000;
+}
+
 export fn _main(hart_id: u64, dtb_base_arg: u64) linksection(".text.main") noreturn {
     _ = hart_id;
     dtb_base = dtb_base_arg;
