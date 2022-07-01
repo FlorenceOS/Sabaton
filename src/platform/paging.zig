@@ -20,22 +20,34 @@ pub const MemoryType = enum {
     writethrough,
 };
 
-pub const Root = struct {
-    ttbr0: table_ptr,
-    ttbr1: table_ptr,
+pub const Root = switch(sabaton.arch) {
+    .aarch64 => struct {
+        ttbr0: table_ptr,
+        ttbr1: table_ptr,
+    },
+    else => struct {
+        root: table_ptr,
+    },
 };
 
 fn make_table_at(e: *pte) table_ptr {
     switch (decode(e.*, false)) {
         .Mapping => unreachable,
         .Table => {
-            return @intToPtr(table_ptr, e.* & 0x0000FFFFFFFFF000);
+            switch(comptime sabaton.arch) {
+                .riscv64 => return @intToPtr(table_ptr, (e.* & 0x0000FFFFFFFFFC00) << 2),
+                else => return @intToPtr(table_ptr, e.* & 0x0000FFFFFFFFF000),
+            }
         },
         .Empty => {
             const page_size = sabaton.platform.get_page_size();
             const ret = sabaton.pmm.alloc_aligned(page_size, .PageTable);
             //sabaton.log_hex("Allocated new table at ", ret.ptr);
-            e.* = @ptrToInt(ret.ptr) | 1 << 63 | 3;
+            e.* = switch(comptime(sabaton.arch)) {
+                .aarch64 => @ptrToInt(ret.ptr) | 1 << 63 | 3,
+                .riscv64 => (@ptrToInt(ret.ptr) >> 2) | 1,
+                else => @compileError("implement make_table_at for " ++ @tagName(sabaton.arch)),
+            };
             return @ptrCast(table_ptr, ret.ptr);
         },
     }
@@ -47,23 +59,47 @@ fn get_index(vaddr: u64, base_bits: u6, level: u64) usize {
 }
 
 fn extra_bits(perm: Perms, mt: MemoryType, page_size: usize, botlevel: bool) u64 {
-    var bits: u64 = 0x1 | (1 << 5) | (1 << 10);
+    switch(comptime(sabaton.arch)) {
+       .aarch64 => {
+            var bits: u64 = 0x1 | (1 << 5) | (1 << 10);
 
-    // Set the walk bit
-    if (page_size < 0x10000 and botlevel) bits |= 2;
+            // Set the walk bit
+            if (page_size < 0x10000 and botlevel) bits |= 2;
 
-    if (@enumToInt(perm) & @enumToInt(Perms.w) == 0) bits |= 1 << 7;
-    if (@enumToInt(perm) & @enumToInt(Perms.x) == 0) bits |= 1 << 54;
-    bits |= switch (mt) {
-        .writeback => @as(u64, 0 << 2 | 2 << 8 | 1 << 11),
-        .mmio => @as(u64, 1 << 2 | 2 << 8),
-        .writethrough => @as(u64, 2 << 2 | 2 << 8 | 1 << 11),
-    };
-    return bits;
+            if (@enumToInt(perm) & @enumToInt(Perms.w) == 0) bits |= 1 << 7;
+            if (@enumToInt(perm) & @enumToInt(Perms.x) == 0) bits |= 1 << 54;
+            bits |= switch (mt) {
+                .writeback => @as(u64, 0 << 2 | 2 << 8 | 1 << 11),
+                .mmio => @as(u64, 1 << 2 | 2 << 8),
+                .writethrough => @as(u64, 2 << 2 | 2 << 8 | 1 << 11),
+            };
+            return bits;
+        },
+
+        .riscv64 => {
+            var bits: u64 = 0x1;
+
+            if(@enumToInt(perm) & @enumToInt(Perms.r) != 0) bits |= 1 << 1;
+            if(@enumToInt(perm) & @enumToInt(Perms.w) != 0) bits |= 1 << 2;
+            if(@enumToInt(perm) & @enumToInt(Perms.x) != 0) bits |= 1 << 3;
+
+            if(sabaton.safety) {
+                if(bits == 1)
+                    @panic("No permission bits were set!");
+            }
+
+            return bits;
+        },
+
+        else => @compileError("implement extra_bits for " ++ @tagName(sabaton.arch)),
+    }
 }
 
 fn make_mapping_at(ent: *pte, paddr: u64, bits: u64) void {
-    ent.* = paddr | bits;
+    switch(comptime(sabaton.arch)) {
+        .riscv64 => ent.* = (paddr >> 2) | bits,
+        else => ent.* = paddr | bits,
+    }
 }
 
 pub fn detect_page_size() u64 {
@@ -89,15 +125,26 @@ pub fn detect_page_size() u64 {
 
 pub fn init_paging() Root {
     const page_size = sabaton.platform.get_page_size();
-    return .{
-        .ttbr0 = @ptrCast(table_ptr, sabaton.pmm.alloc_aligned(page_size, .PageTable)),
-        .ttbr1 = @ptrCast(table_ptr, sabaton.pmm.alloc_aligned(page_size, .PageTable)),
+    return switch(comptime(sabaton.arch)) {
+        .aarch64 => .{
+            .ttbr0 = @ptrCast(table_ptr, sabaton.pmm.alloc_aligned(page_size, .PageTable)),
+            .ttbr1 = @ptrCast(table_ptr, sabaton.pmm.alloc_aligned(page_size, .PageTable)),
+        },
+        else => .{
+            .root = @ptrCast(table_ptr, sabaton.pmm.alloc_aligned(page_size, .PageTable)),
+        },
     };
 }
 
 fn can_map(size: u64, vaddr: u64, paddr: u64, large_step: u64) bool {
-    if (large_step > 0x40000000)
-        return false;
+    switch(comptime(sabaton.arch)) {
+        .aarch64 => {
+            if (large_step > 0x40000000)
+                return false;
+        },
+        else => {},
+    }
+
     if (size < large_step)
         return false;
     const mask = large_step - 1;
@@ -109,21 +156,36 @@ fn can_map(size: u64, vaddr: u64, paddr: u64, large_step: u64) bool {
 }
 
 fn choose_root(r: *const Root, vaddr: u64) table_ptr {
-    if (sabaton.util.upper_half(vaddr)) {
-        return r.ttbr1;
-    } else {
-        return r.ttbr0;
-    }
+    return switch(comptime(sabaton.arch)) {
+        .aarch64 => {
+            if (sabaton.util.upper_half(vaddr)) {
+                return r.ttbr1;
+            } else {
+                return r.ttbr0;
+            }
+        },
+        else => r.root,
+    };
 }
 
 pub fn current_root() Root {
-    return .{
-        .ttbr0 = asm ("MRS %[br0], TTBR0_EL1"
-            : [br0] "=r" (-> table_ptr)
-        ),
-        .ttbr1 = asm ("MRS %[br1], TTBR1_EL1"
-            : [br1] "=r" (-> table_ptr)
-        ),
+    return switch(comptime(sabaton.arch)) {
+        .aarch64 => .{
+            .ttbr0 = asm ("MRS %[br0], TTBR0_EL1"
+                : [br0] "=r" (-> table_ptr)
+            ),
+            .ttbr1 = asm ("MRS %[br1], TTBR1_EL1"
+                : [br1] "=r" (-> table_ptr)
+            ),
+        },
+
+        .riscv64 => .{
+            .root = @intToPtr(table_ptr, @as(u64, asm("mcrr %[root], satp"
+                : [root] "=r" (->u44)
+            )) << 12),
+        },
+
+        else => @compileError("Implement current_root for " + @tagName(sabaton.arch)),
     };
 }
 
@@ -134,11 +196,25 @@ const Decoded = enum {
 };
 
 pub fn decode(e: pte, bottomlevel: bool) Decoded {
-    if (e & 1 == 0)
-        return .Empty;
-    if (bottomlevel or e & 2 == 0)
-        return .Mapping;
-    return .Table;
+    switch(comptime(sabaton.arch)) {
+        .aarch64 => {
+            if (e & 1 == 0)
+                return .Empty;
+            if (bottomlevel or e & 2 == 0)
+                return .Mapping;
+            return .Table;
+        },
+
+        .riscv64 => {
+            if(e & 1 == 0)
+                return .Empty;
+            if((e & (0b111 << 1)) == 0) // RWX = 000
+                return .Table;
+            return .Mapping;
+        },
+
+        else => @compileError("Implement decode for " + @tagName(sabaton.arch)),
+    }
 }
 
 pub fn map(vaddr_c: u64, paddr_c: u64, size_c: u64, perm: Perms, mt: MemoryType, in_root: *Root) void {
@@ -151,11 +227,14 @@ pub fn map(vaddr_c: u64, paddr_c: u64, size_c: u64, perm: Perms, mt: MemoryType,
 
     const root = choose_root(in_root, vaddr);
 
-    const levels: usize =
-        switch (page_size) {
-        0x1000, 0x4000 => 4,
-        0x10000 => 3,
-        else => unreachable,
+    const levels: usize = switch(comptime(sabaton.arch)) {
+        .aarch64 => @as(u64, switch (page_size) {
+            0x1000, 0x4000 => 4,
+            0x10000 => 3,
+            else => unreachable,
+        }),
+        .riscv64 => 4,
+        else => @compileError("Implement levels for " + @tagName(sabaton.arch)),
     };
 
     const base_bits = @intCast(u6, @ctz(u64, page_size));
@@ -291,7 +370,19 @@ pub fn apply_paging(r: *Root) void {
         },
 
         .riscv64 => {
+            const mode = 9; // 48-bit virtual addressing
 
+            const satp = 0
+                | @ptrToInt(r.root) >> 12
+                | mode << 60
+            ;
+
+            asm volatile (
+                \\CSRW satp, %[satp]
+                :
+                : [satp] "r" (satp),
+                : "memory"
+            );
         },
 
         else => @compileError("Implement apply_paging for " ++ @tagName(sabaton.arch)),
