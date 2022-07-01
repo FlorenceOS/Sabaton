@@ -31,14 +31,29 @@ pub fn find_cpu_id(dtb_id: usize) ?u32 {
 }
 
 comptime {
-    asm (
-        \\.section .text.smp_stub
-        \\.global smp_stub
-        \\smp_stub:
-        \\  DSB SY
-        \\  LDR X1, [X0, #8]
-        \\  MOV SP, X1
-    );
+    switch(sabaton.arch) {
+        .aarch64 => {
+            asm (
+                \\.section .text.smp_stub
+                \\.global smp_stub
+                \\smp_stub:
+                \\  DSB SY
+                \\  LDR X1, [X0, #8]
+                \\  MOV SP, X1
+            );
+        },
+
+        .riscv64 => {
+            asm(
+                \\.section .text.smp_stub
+                \\.global smp_stub
+                \\smp_stub:
+                \\  J smp_stub
+            );
+        },
+
+        else => @compileError("Implement smp_stub for " ++ @tagName(sabaton.arch)),
+    }
 }
 
 export fn smp_entry(context: u64) linksection(".text.smp_entry") noreturn {
@@ -86,22 +101,32 @@ pub fn psci_smp(comptime methods: ?sabaton.psci.Mode) void {
         const stack = sabaton.pmm.alloc_aligned(0x1000, .Hole);
         tag_entry.stack = @ptrToInt(stack.ptr) + 0x1000;
 
-        // Make sure we've written everything we need to memory before waking this CPU up
-        asm volatile ("DSB ST\n" ::: "memory");
+        switch(comptime(sabaton.arch)) {
+            .aarch64 => {
+                // Make sure we've written everything we need to memory before waking this CPU up
+                asm volatile ("DSB ST\n" ::: "memory");
 
-        if (comptime (methods == null)) {
-            if (std.mem.eql(u8, psci_method, "smc")) {
-                _ = sabaton.psci.wake_cpu(entry, id, tag_addr, .SMC);
-                continue;
-            }
+                if (comptime (methods == null)) {
+                    if (std.mem.eql(u8, psci_method, "smc")) {
+                        _ = sabaton.psci.wake_cpu(entry, id, tag_addr, .SMC);
+                        continue;
+                    }
 
-            if (std.mem.eql(u8, psci_method, "hvc")) {
-                _ = sabaton.psci.wake_cpu(entry, id, tag_addr, .HVC);
-                continue;
-            }
-        } else {
-            _ = sabaton.psci.wake_cpu(entry, id, tag_addr, comptime (methods.?));
-            continue;
+                    if (std.mem.eql(u8, psci_method, "hvc")) {
+                        _ = sabaton.psci.wake_cpu(entry, id, tag_addr, .HVC);
+                        continue;
+                    }
+                } else {
+                    _ = sabaton.psci.wake_cpu(entry, id, tag_addr, comptime (methods.?));
+                    continue;
+                }
+            },
+
+            .riscv64 => {
+                // TODO
+            },
+
+            else => @compileError("Implement CPU waking on " ++ @tagName(sabaton.arch)),
         }
 
         if (comptime !sabaton.safety)

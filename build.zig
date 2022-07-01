@@ -35,6 +35,11 @@ fn freestanding_target(elf: *std.build.LibExeObjStep, arch: std.Target.Cpu.Arch,
             elf.code_model = .tiny;
     }
 
+    if(arch == .riscv64) {
+        // Where are the riscv code models??
+        elf.code_model = .medium;
+    }
+
     elf.setTarget(cpu_features(arch, .{
         .os_tag = std.Target.Os.Tag.freestanding,
         .abi = std.Target.Abi.none,
@@ -124,6 +129,15 @@ pub fn aarch64VirtBlob(b: *Builder) *std.build.InstallRawStep {
     });
 }
 
+pub fn riscvVirtBlob(b: *Builder) *std.build.InstallRawStep {
+    const elf = try build_elf(b, .riscv64, "virt");
+    return elf.installRaw(b.fmt("{s}.bin", .{elf.out_filename}), .{
+        .format = .bin,
+        .only_section_name = ".blob",
+        .pad_to_size = 32 * 1024 * 1024, // 64M
+    });
+}
+
 fn qemu_aarch64(b: *Builder, board_name: []const u8, desc: []const u8) !void {
     const command_step = b.step(board_name, desc);
     const blob = aarch64VirtBlob(b);
@@ -145,6 +159,35 @@ fn qemu_aarch64(b: *Builder, board_name: []const u8, desc: []const u8) !void {
         "-smp", "8",
         "-device", "ramfb",
         "-fw_cfg", "opt/Sabaton/kernel,file=test/Flork_stivale2_aarch64",
+        "-drive", b.fmt("if=pflash,format=raw,file={s},readonly=on", .{blob_path}),
+        // zig fmt: on
+    });
+
+    run_step.step.dependOn(&blob.step);
+    command_step.dependOn(&run_step.step);
+}
+
+fn qemu_riscv(b: *Builder, desc: []const u8) !void {
+    const command_step = b.step("riscv-virt", desc);
+    const blob = riscvVirtBlob(b);
+
+    const build_step = b.step("qemu-riscv-virt-build", "Build the qemu riscv virt blob");
+    build_step.dependOn(&blob.step);
+
+    const blob_path = b.getInstallPath(blob.dest_dir, blob.dest_filename);
+
+    const run_step = b.addSystemCommand(&[_][]const u8{
+        // zig fmt: off
+        "qemu-system-riscv64",
+        "-M", "virt",
+        //"-cpu", "cortex-a57",
+        "-m", "4G",
+        "-serial", "stdio",
+        //"-S", "-s",
+        //"-d", "int",
+        //"-smp", "8",
+        "-device", "ramfb",
+        "-kernel", "test/uart_riscv.elf",
         "-drive", b.fmt("if=pflash,format=raw,file={s},readonly=on", .{blob_path}),
         // zig fmt: on
     });
@@ -223,6 +266,10 @@ pub fn build(b: *Builder) !void {
         "virt",
         "Run aarch64 sabaton for the qemu virt board",
     );
+
+    try qemu_riscv(b,
+       "Run riscv64 sabaton on for the qemu virt board",
+    );
     
     try qemu_pi3_aarch64(
         b,
@@ -276,10 +323,4 @@ pub fn build(b: *Builder) !void {
             b.default_step.dependOn(s);
         }
     }
-
-    // qemu_riscv(b,
-    //   "virt",
-    //   "Run riscv64 sabaton on for the qemu virt board",
-    //   build_elf(b, .riscv64, "virt"),
-    // );
 }

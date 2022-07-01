@@ -24,8 +24,8 @@ pub const near = util.near;
 pub const vital = util.vital;
 pub const io = platform.io;
 
-pub const debug = @import("builtin").mode == .Debug;
-pub const safety = std.debug.runtime_safety;
+pub const debug = true;
+pub const safety = true;
 
 pub const arch = @import("builtin").target.cpu.arch;
 pub const endian = arch.endian();
@@ -54,14 +54,27 @@ pub fn panic(reason: []const u8, stacktrace: ?*std.builtin.StackTrace) noreturn 
         }
     }
 
-    asm volatile (
-        \\  // Disable interrupts
-        \\  MSR DAIFSET, 0xF
-        \\
-        \\  // Hang
-        \\1:WFI
-        \\  B 1b
-    );
+    switch(comptime(arch)) {
+        .aarch64 => {
+            asm volatile (
+                \\  // Disable interrupts
+                \\  MSR DAIFSET, 0xF
+            );
+        },
+
+        .riscv64 => {
+            asm volatile(
+                \\  // IDFK how to disable interrupts so hello
+            );
+        },
+
+        else => @compileError("Disable interrupts on " ++ arch),
+    }
+
+    while(true) {
+        std.atomic.spinLoopHint();
+    }
+
     unreachable;
 }
 
@@ -175,12 +188,18 @@ export fn fatal_error() noreturn {
 }
 
 pub fn install_evt() void {
-    asm volatile (
-        \\ MSR VBAR_EL1, %[evt]
-        \\ MSR TPIDR_EL1, XZR
-        :
-        : [evt] "r" (sabaton.near("evt_base").addr(u8))
-    );
+    switch(comptime(arch)) {
+        .aarch64 => {
+            asm volatile (
+                \\ MSR VBAR_EL1, %[evt]
+                \\ MSR TPIDR_EL1, XZR
+                :
+                : [evt] "r" (sabaton.near("evt_base").addr(u8))
+            );
+        },
+
+        else => {},
+    }
     sabaton.puts("Installed EVT\n");
 }
 
@@ -272,17 +291,36 @@ pub fn main() noreturn {
 }
 
 pub inline fn enterKernel(kernel_elf: *const Elf, stack: u64) noreturn {
-    asm volatile (
-        \\  MSR SPSel, XZR
-        \\  DMB SY
-        \\  CBZ %[stack], 1f
-        \\  MOV SP, %[stack]
-        \\1:BR %[entry]
-        :
-        : [entry] "r" (kernel_elf.entry()),
-          [stack] "r" (stack),
-          [info] "{X0}" (&stivale2_info)
-    );
+    switch(comptime(arch)) {
+        .aarch64 => {
+            asm volatile (
+                \\  MSR SPSel, XZR
+                \\  DMB SY
+                \\  CBZ %[stack], 1f
+                \\  MOV SP, %[stack]
+                \\1:BR %[entry]
+                :
+                : [entry] "r" (kernel_elf.entry()),
+                  [stack] "r" (stack),
+                  [info] "{X0}" (&stivale2_info)
+            );
+        },
+
+        .riscv64 => {
+            asm volatile (
+                \\  BEQ %[stack], zero, 1f
+                \\  MV sp, %[stack]
+                \\1:JR %[entry]
+                :
+                : [entry] "r" (kernel_elf.entry()),
+                  [stack] "r" (stack),
+                  [info] "{a0}" (&stivale2_info)
+            );
+        },
+
+        else => @compileError("Implement enterKernel on " ++ arch),
+    }
+
     unreachable;
 }
 
@@ -297,24 +335,41 @@ pub fn stivale2_smp_ready(context: u64) noreturn {
         if (goto != 0)
             break;
 
-        asm volatile (
-            \\YIELD
-        );
+        std.atomic.spinLoopHint();
     }
 
-    asm volatile ("DSB SY\n" ::: "memory");
+    switch(comptime(arch)) {
+        .aarch64 => {
+            asm volatile ("DSB SY\n" ::: "memory");
 
-    asm volatile (
-        \\   MSR SPSel, #0
-        \\   MOV SP, %[stack]
-        \\   MOV LR, #~0
-        \\   BR  %[goto]
-        :
-        : [stack] "r" (cpu_tag.stack),
-          [arg] "{X0}" (cpu_tag),
-          [goto] "r" (goto)
-        : "memory"
-    );
+            asm volatile (
+                \\   MSR SPSel, #0
+                \\   MOV SP, %[stack]
+                \\   MOV LR, #~0
+                \\   BR  %[goto]
+                :
+                : [stack] "r" (cpu_tag.stack),
+                  [arg] "{X0}" (cpu_tag),
+                  [goto] "r" (goto)
+                : "memory"
+            );
+        },
+
+        .riscv64 => {
+            asm volatile (
+                \\   MV sp, %[stack]
+                \\   LI ra, ~0
+                \\   JR  %[goto]
+                :
+                : [stack] "r" (cpu_tag.stack),
+                  [arg] "{X0}" (cpu_tag),
+                  [goto] "r" (goto)
+                : "memory"
+            );
+        },
+
+        else => @compileError("Implement stivale2_smp_ready for " ++ @tagName(arch)),
+    }
     unreachable;
 }
 

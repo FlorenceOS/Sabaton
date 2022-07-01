@@ -35,25 +35,47 @@ pub fn strlen(str: [*:0]u8) usize {
 }
 
 pub fn near(comptime name: []const u8) type {
-    _ = name;
-    return struct {
-        pub fn read(comptime t: type) t {
-            return asm ("LDR %[out], " ++ name ++ "\n\t"
-                : [out] "=r" (-> t)
-                :
-                : "memory"
-            );
-        }
+    return switch(sabaton.arch) {
+        .aarch64 => struct {
+            pub fn read(comptime t: type) t {
+                return asm ("LDR %[out], " ++ name ++ "\n\t"
+                    : [out] "=r" (-> t)
+                    :
+                    : "memory"
+                );
+            }
 
-        pub fn addr(comptime t: type) [*]t {
-            return asm ("ADR %[out], " ++ name ++ "\n\t"
-                : [out] "=r" (-> [*]t)
-            );
-        }
+            pub fn addr(comptime t: type) [*]t {
+                return asm ("ADR %[out], " ++ name ++ "\n\t"
+                    : [out] "=r" (-> [*]t)
+                );
+            }
 
-        pub fn write(val: anytype) void {
-            addr(@TypeOf(val))[0] = val;
-        }
+            pub fn write(val: anytype) void {
+                addr(@TypeOf(val))[0] = val;
+            }
+        },
+
+        .riscv64 => struct {
+            pub fn read(comptime t: type) t {
+                return addr(t)[0];
+            }
+
+            pub fn addr(comptime t: type) [*]t {
+                return asm(
+                    "LA %[out], " ++ name ++ "\n\t"
+                    : [out] "=r" (-> [*]t)
+                    :
+                    : "memory"
+                );
+            }
+
+            pub fn write(val: anytype) void {
+                addr(@TypeOf(val))[0] = val;
+            }
+        },
+
+        else => @compileError("Implement near for arch " ++ @tagName(sabaton.arch)),
     };
 }
 

@@ -77,7 +77,13 @@ fn pci_bars_callback(dev: Addr) bool {
 }
 
 pub fn init_from_dtb(root: *sabaton.paging.Root) void {
-    const pci_blob = sabaton.vital(sabaton.dtb.find("pcie@", "reg"), "Cannot find pci base dtb", true);
+    const pci_node_prefix = comptime switch(sabaton.arch) {
+        .aarch64 => "pcie@",
+        .riscv64 => "pci@",
+        else => @compileError("Implement pci.init_from_dtb for " ++ @tagName(sabaton.arch)),
+    };
+    const pci_blob = sabaton.vital(sabaton.dtb.find(pci_node_prefix, "reg"), "Cannot find pci base dtb", true);
+
     bus0base = std.mem.readIntBig(u64, pci_blob[0..][0..8]);
     bus0size = std.mem.readIntBig(u64, pci_blob[8..][0..8]);
 
@@ -89,7 +95,7 @@ pub fn init_from_dtb(root: *sabaton.paging.Root) void {
     sabaton.paging.map(bus0base, bus0base, bus0size, .rw, .mmio, root);
     sabaton.paging.map(bus0base + sabaton.upper_half_phys_base, bus0base, bus0size, .rw, .mmio, root);
 
-    const bar_blob = sabaton.vital(sabaton.dtb.find("pcie@", "ranges"), "Cannot find pci ranges dtb", true);
+    const bar_blob = sabaton.vital(sabaton.dtb.find(pci_node_prefix, "ranges"), "Cannot find pci ranges dtb", true);
     bar32base = std.mem.readIntBig(u64, bar_blob[0x28..][0..8]);
     bar64base = std.mem.readIntBig(u64, bar_blob[0x3C..][0..8]);
 

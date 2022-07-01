@@ -175,7 +175,7 @@ pub fn map(vaddr_c: u64, paddr_c: u64, size_c: u64, perm: Perms, mt: MemoryType,
                 .Mapping => {
                     sabaton.log_hex("Overlapping mapping at ", vaddr);
                     sabaton.log_hex("PTE is ", current_table[ind]);
-                    unreachable;
+                    @panic("Overlapping mapping");
                 },
                 .Table => {}, // Just iterate to the next level
                 .Empty => {
@@ -204,89 +204,98 @@ pub fn map(vaddr_c: u64, paddr_c: u64, size_c: u64, perm: Perms, mt: MemoryType,
 }
 
 pub fn apply_paging(r: *Root) void {
-    var sctlr = asm (
-        \\MRS %[sctlr], SCTLR_EL1
-        : [sctlr] "=r" (-> u64)
-    );
-    var aa64mmfr0 = asm (
-        \\MRS %[id], ID_AA64MMFR0_EL1
-        : [id] "=r" (-> u64)
-    );
+    switch(comptime (sabaton.arch)) {
+        .aarch64 => {
+            var sctlr = asm (
+                \\MRS %[sctlr], SCTLR_EL1
+                : [sctlr] "=r" (-> u64)
+            );
+            var aa64mmfr0 = asm (
+                \\MRS %[id], ID_AA64MMFR0_EL1
+                : [id] "=r" (-> u64)
+            );
 
-    // Documentation? Nah, be a professional guesser.
-    sctlr |= 1;
+            // Documentation? Nah, be a professional guesser.
+            sctlr |= 1;
 
-    aa64mmfr0 &= 0x0F;
-    if (aa64mmfr0 > 5)
-        aa64mmfr0 = 5;
+            aa64mmfr0 &= 0x0F;
+            if (aa64mmfr0 > 5)
+                aa64mmfr0 = 5;
 
-    var paging_granule_br0: u64 = undefined;
-    var paging_granule_br1: u64 = undefined;
-    var region_size_offset: u64 = undefined;
+            var paging_granule_br0: u64 = undefined;
+            var paging_granule_br1: u64 = undefined;
+            var region_size_offset: u64 = undefined;
 
-    switch (sabaton.platform.get_page_size()) {
-        0x1000 => {
-            paging_granule_br0 = 0b00;
-            paging_granule_br1 = 0b10;
-            region_size_offset = 16;
+            switch (sabaton.platform.get_page_size()) {
+                0x1000 => {
+                    paging_granule_br0 = 0b00;
+                    paging_granule_br1 = 0b10;
+                    region_size_offset = 16;
+                },
+                0x4000 => {
+                    paging_granule_br0 = 0b10;
+                    paging_granule_br1 = 0b01;
+                    region_size_offset = 8;
+                },
+                0x10000 => {
+                    paging_granule_br0 = 0b01;
+                    paging_granule_br1 = 0b11;
+                    region_size_offset = 0;
+                },
+                else => unreachable,
+            }
+
+            // zig fmt: off
+            const tcr: u64 = 0
+                | (region_size_offset << 0) // T0SZ
+                | (region_size_offset << 16) // T1SZ
+                | (1 << 8) // TTBR0 Inner WB RW-Allocate
+                | (1 << 10) // TTBR0 Outer WB RW-Allocate
+                | (1 << 24) // TTBR1 Inner WB RW-Allocate
+                | (1 << 26) // TTBR1 Outer WB RW-Allocate
+                | (2 << 12) // TTBR0 Inner shareable
+                | (2 << 28) // TTBR1 Inner shareable
+                | (aa64mmfr0 << 32) // intermediate address size
+                | (paging_granule_br0 << 14) // TTBR0 granule
+                | (paging_granule_br1 << 30) // TTBR1 granule
+                | (1 << 56) // Fault on TTBR1 access from EL0
+                | (0 << 55) // Don't fault on TTBR0 access from EL0
+            ;
+
+            const mair: u64 = 0
+                | (0b11111111 << 0) // Normal, Write-back RW-Allocate non-transient
+                | (0b00000000 << 8) // Device, nGnRnE
+            ;
+            // zig fmt: on
+
+            if (sabaton.debug) {
+                sabaton.log("Enabling paging... ", .{});
+            }
+
+            asm volatile (
+                \\MSR TTBR0_EL1, %[ttbr0]
+                \\MSR TTBR1_EL1, %[ttbr1]
+                \\MSR MAIR_EL1, %[mair]
+                \\MSR TCR_EL1, %[tcr]
+                \\MSR SCTLR_EL1, %[sctlr]
+                \\DSB SY
+                \\ISB SY
+                :
+                : [ttbr0] "r" (r.ttbr0),
+                  [ttbr1] "r" (r.ttbr1),
+                  [sctlr] "r" (sctlr),
+                  [tcr] "r" (tcr),
+                  [mair] "r" (mair)
+                : "memory"
+            );
         },
-        0x4000 => {
-            paging_granule_br0 = 0b10;
-            paging_granule_br1 = 0b01;
-            region_size_offset = 8;
+
+        .riscv64 => {
+
         },
-        0x10000 => {
-            paging_granule_br0 = 0b01;
-            paging_granule_br1 = 0b11;
-            region_size_offset = 0;
-        },
-        else => unreachable,
+
+        else => @compileError("Implement apply_paging for " ++ @tagName(sabaton.arch)),
     }
-
-    // zig fmt: off
-    const tcr: u64 = 0
-        | (region_size_offset << 0) // T0SZ
-        | (region_size_offset << 16) // T1SZ
-        | (1 << 8) // TTBR0 Inner WB RW-Allocate
-        | (1 << 10) // TTBR0 Outer WB RW-Allocate
-        | (1 << 24) // TTBR1 Inner WB RW-Allocate
-        | (1 << 26) // TTBR1 Outer WB RW-Allocate
-        | (2 << 12) // TTBR0 Inner shareable
-        | (2 << 28) // TTBR1 Inner shareable
-        | (aa64mmfr0 << 32) // intermediate address size
-        | (paging_granule_br0 << 14) // TTBR0 granule
-        | (paging_granule_br1 << 30) // TTBR1 granule
-        | (1 << 56) // Fault on TTBR1 access from EL0
-        | (0 << 55) // Don't fault on TTBR0 access from EL0
-    ;
-
-    const mair: u64 = 0
-        | (0b11111111 << 0)  // Normal, Write-back RW-Allocate non-transient
-        | (0b00000000 << 8)  // Device, nGnRnE
-        | (0b10111011 << 16) // Normal, Write-through RW-Allocate non-transient
-    ;
-    // zig fmt: on
-
-    if (sabaton.debug) {
-        sabaton.log("Enabling paging... ", .{});
-    }
-
-    asm volatile (
-        \\MSR TTBR0_EL1, %[ttbr0]
-        \\MSR TTBR1_EL1, %[ttbr1]
-        \\MSR MAIR_EL1, %[mair]
-        \\MSR TCR_EL1, %[tcr]
-        \\MSR SCTLR_EL1, %[sctlr]
-        \\DSB SY
-        \\ISB SY
-        :
-        : [ttbr0] "r" (r.ttbr0),
-          [ttbr1] "r" (r.ttbr1),
-          [sctlr] "r" (sctlr),
-          [tcr] "r" (tcr),
-          [mair] "r" (mair)
-        : "memory"
-    );
 
     if (sabaton.debug) {
         sabaton.log("Paging enabled!\n", .{});
