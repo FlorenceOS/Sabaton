@@ -47,8 +47,6 @@ fn freestanding_target(elf: *std.build.LibExeObjStep, arch: std.Target.Cpu.Arch,
 }
 
 fn executable_common(b: *Builder, exec: *std.build.LibExeObjStep, board_name: []const u8) void {
-    exec.setBuildMode(.ReleaseSmall);
-
     var options = b.addOptions();
     options.addOption([]const u8, "board_name", board_name);
     exec.addOptions("build_options", options);
@@ -158,7 +156,7 @@ fn qemu_aarch64(b: *Builder, board_name: []const u8, desc: []const u8) !void {
         "-d", "int",
         "-smp", "8",
         "-device", "ramfb",
-        "-fw_cfg", "opt/Sabaton/kernel,file=test/Flork_stivale2_aarch64",
+        "-kernel", "test/Flork_stivale2_aarch64",
         "-drive", b.fmt("if=pflash,format=raw,file={s},readonly=on", .{blob_path}),
         // zig fmt: on
     });
@@ -286,6 +284,7 @@ pub fn build(b: *Builder) !void {
     {
         const assembly_blobs = &[_]AssemblyBlobSpec{
             .{ .path = "src/platform/pine_aarch64/identity.S", .name = "identity_pine", .arch = .aarch64 },
+            .{ .path = "src/platform/vision_five_v1_riscv64/s1.S", .name = "vision_five_v1_s1", .arch = .riscv64},
         };
 
         for (assembly_blobs) |spec| {
@@ -309,6 +308,7 @@ pub fn build(b: *Builder) !void {
         const blob_devices = &[_]Device{
             .{ .name = "pine", .arch = .aarch64 },
             .{ .name = "sdm665", .arch = .aarch64 },
+            .{ .name = "vision_five_v1", .arch = .riscv64 },
         };
 
         for (blob_devices) |dev| {
