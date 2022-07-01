@@ -5,6 +5,9 @@ _start:
   // Disable interrupts
   //MSR DAIFSET, #0xF
 
+loop:
+  BNE a0, zero, loop
+
   // Relocate ourselves
   AUIPC t0, %pcrel_hi(_start)
   LD t1, %lo(relocation_base)(t0)
