@@ -120,6 +120,11 @@ pub fn psci_smp(comptime methods: ?sabaton.psci.Mode) void {
                     _ = sabaton.psci.wake_cpu(entry, id, tag_addr, comptime (methods.?));
                     continue;
                 }
+
+                if (comptime !sabaton.safety)
+                    unreachable;
+
+                @panic("Unknown PSCI method!");
             },
 
             .riscv64 => {
@@ -128,11 +133,6 @@ pub fn psci_smp(comptime methods: ?sabaton.psci.Mode) void {
 
             else => @compileError("Implement CPU waking on " ++ @tagName(sabaton.arch)),
         }
-
-        if (comptime !sabaton.safety)
-            unreachable;
-
-        @panic("Unknown PSCI method!");
     }
 
     sabaton.add_tag(&smp_header.tag);
