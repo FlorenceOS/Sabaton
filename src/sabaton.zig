@@ -311,10 +311,17 @@ pub inline fn enterKernel(kernel_elf: *const Elf, stack: u64) noreturn {
         },
 
         .riscv64 => {
+            asm volatile(
+                \\  CSRW mstatus, %[mstatus]
+                :
+                : [mstatus] "r" (@as(u64, (1 << 11)))
+            );
+
             asm volatile (
                 \\  BEQ %[stack], zero, 1f
                 \\  MV sp, %[stack]
-                \\1:JR %[entry]
+                \\1:CSRW mepc, %[entry]
+                \\  MRET
                 :
                 : [entry] "r" (kernel_elf.entry()),
                   [stack] "r" (stack),
