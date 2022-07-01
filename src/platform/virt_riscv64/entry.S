@@ -1,15 +1,18 @@
 .global _start
 
 .section .text.entry
+
 _start:
+  AUIPC t0, %pcrel_hi(_start)
+
   // Disable interrupts
   //MSR DAIFSET, #0xF
 
+  // Check if non-first core
 loop:
   BNE a0, zero, loop
 
   // Relocate ourselves
-  AUIPC t0, %pcrel_hi(_start)
   LD t1, %lo(relocation_base)(t0)
   MV sp, t1
   LD t2, %lo(relocation_end)(t0)
