@@ -24,8 +24,8 @@ pub const near = util.near;
 pub const vital = util.vital;
 pub const io = platform.io;
 
-pub const debug = true;
-pub const safety = true;
+pub const debug = @import("builtin").mode == .Debug;
+pub const safety = std.debug.runtime_safety;
 
 pub const arch = @import("builtin").target.cpu.arch;
 pub const endian = arch.endian();

@@ -49,7 +49,6 @@ const DMAAccess = packed struct {
 pub fn do_dma(buffer: []u8, control: u32) void {
     const dma_addr = @intToPtr(*volatile u64, base.? + 16);
     var access_bytes: [@sizeOf(DMAAccess)]u8 = undefined;
-    sabaton.log_hex("Doing dma of size ", buffer.len);
     var access = @ptrCast(*volatile DMAAccess, &access_bytes[0]);
     access.* = .{
         .control = std.mem.nativeToBig(u32, control),
