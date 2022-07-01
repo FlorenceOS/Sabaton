@@ -10,23 +10,21 @@ const File = packed struct {
     name: [56]u8,
 
     pub fn write(self: *const @This(), buffer: []const u8) void {
-        const dma_addr = @intToPtr(*volatile u64, base.? + 16);
-        do_dma(@intToPtr([*]u8, @ptrToInt(buffer.ptr))[0..buffer.len], (1 << 4) | (1 << 3) | (@as(u32, self.select) << 16), dma_addr);
+        do_dma(@intToPtr([*]u8, @ptrToInt(buffer.ptr))[0..buffer.len], (1 << 4) | (1 << 3) | (@as(u32, self.select) << 16));
     }
 
     pub fn read(self: *const @This(), buffer: []u8) void {
-        const dma_addr = @intToPtr(*volatile u64, base.? + 16);
-        do_dma(buffer, (1 << 1) | (1 << 3) | (@as(u32, self.select) << 16), dma_addr);
+        do_dma(buffer, (1 << 1) | (1 << 3) | (@as(u32, self.select) << 16));
     }
 };
 
 pub fn init_from_dtb() void {
     const fw_cfg = sabaton.dtb.find("fw-cfg@", "reg") catch return;
 
-    base = std.mem.readIntBig(u64, fw_cfg[0..][0..8]);
+    base = std.mem.readIntBig(u64, fw_cfg[0..8]);
 
     if (sabaton.debug)
-        sabaton.log_hex("fw_cfg base: ", base.?);
+        sabaton.log_hex("fw_cfg base is stored at ", &base);
 
     const data = @intToPtr(*volatile u64, base.?);
     const selector = @intToPtr(*volatile u16, base.? + 8);
@@ -48,8 +46,10 @@ const DMAAccess = packed struct {
     addr: u64,
 };
 
-pub fn do_dma(buffer: []u8, control: u32, dma_addr: *volatile u64) void {
+pub fn do_dma(buffer: []u8, control: u32) void {
+    const dma_addr = @intToPtr(*volatile u64, base.? + 16);
     var access_bytes: [@sizeOf(DMAAccess)]u8 = undefined;
+    sabaton.log_hex("Doing dma of size ", buffer.len);
     var access = @ptrCast(*volatile DMAAccess, &access_bytes[0]);
     access.* = .{
         .control = std.mem.nativeToBig(u32, control),
@@ -71,34 +71,48 @@ pub fn do_dma(buffer: []u8, control: u32, dma_addr: *volatile u64) void {
     }
 }
 
+pub fn get_variable(comptime T: type, selector: u16) T {
+    var result: T = undefined;
+    get_bytes(std.mem.asBytes(&result), selector);
+    return result;
+}
+
+pub fn get_more_variable(comptime T: type) T {
+    var result: T = undefined;
+    get_more_bytes(std.mem.asBytes(&result));
+    return result;
+}
+
+pub fn get_bytes(buffer: []u8, selector: u16) void {
+    do_dma(buffer, (1 << 1) | (1 << 3) | @as(u32, selector) << 16);
+}
+
+pub fn get_more_bytes(buffer: []u8) void {
+    do_dma(buffer, (1 << 1));
+}
+
 pub fn find_file(filename: []const u8) ?File {
-    if (base) |b| {
-        const dma_addr = @intToPtr(*volatile u64, b + 16);
+    // Get number of files
+    const num_files = std.mem.bigToNative(u32, get_variable(u32, 0x0019));
 
-        // Get number of files
-        var num_files: u32 = undefined;
-        do_dma(@ptrCast([*]u8, &num_files)[0..4], (1 << 1) | (1 << 3) | (0x0019 << 16), dma_addr);
-        num_files = std.mem.bigToNative(u32, num_files);
+    var current_file: u32 = 0;
+    while (current_file < num_files) : (current_file += 1) {
+        // Get a file at a time
 
-        var current_file: u32 = 0;
-        while (current_file < num_files) : (current_file += 1) {
-            // Get a file at a time
-            var f: File = undefined;
-            do_dma(@ptrCast([*]u8, &f)[0..@sizeOf(File)], (1 << 1), dma_addr);
-            f.size = std.mem.bigToNative(u32, f.size);
-            f.select = std.mem.bigToNative(u16, f.select);
+        var f = get_more_variable(File);
+        f.size = std.mem.bigToNative(u32, f.size);
+        f.select = std.mem.bigToNative(u16, f.select);
 
-            if (sabaton.debug) {
-                sabaton.puts("fw cfg file:\n");
-                sabaton.log_hex(" size: ", f.size);
-                sabaton.puts(" filename: ");
-                sabaton.puts(@ptrCast([*:0]u8, &f.name[0]));
-                sabaton.putchar('\n');
-            }
+        if (sabaton.debug) {
+            sabaton.puts("fw cfg file:\n");
+            sabaton.log_hex(" size: ", f.size);
+            sabaton.puts(" filename: ");
+            sabaton.puts(@ptrCast([*:0]u8, &f.name[0]));
+            sabaton.putchar('\n');
+        }
 
-            if (std.mem.eql(u8, filename, f.name[0..filename.len]) and f.name[filename.len] == 0) {
-                return f;
-            }
+        if (std.mem.eql(u8, filename, f.name[0..filename.len]) and f.name[filename.len] == 0) {
+            return f;
         }
     }
 
