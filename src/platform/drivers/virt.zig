@@ -74,13 +74,6 @@ pub fn get_dram() []u8 {
     return sabaton.near("dram_base").read([*]u8)[0..get_dram_size()];
 }
 
-pub fn map_platform(root: *sabaton.paging.Root) void {
-    sabaton.paging.map(0, 0, 1024 * 1024 * 1024, .rw, .mmio, root);
-    sabaton.paging.map(sabaton.upper_half_phys_base, 0, 1024 * 1024 * 1024, .rw, .mmio, root);
-    sabaton.puts("Initing pci!\n");
-    sabaton.pci.init_from_dtb(root);
-}
-
 // Dram size varies as you can set different amounts of RAM for your VM
 fn get_dram_size() u64 {
     const memory_blob = sabaton.vital(sabaton.dtb.find("memory@", "reg"), "Cannot find memory in dtb", false);

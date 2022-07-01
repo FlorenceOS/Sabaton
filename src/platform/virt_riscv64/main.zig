@@ -26,3 +26,9 @@ export fn _main(hart_id: u64, dtb_base_arg: u64) linksection(".text.main") noret
     sabaton.fw_cfg.init_from_dtb();
     @call(.{ .modifier = .always_inline }, sabaton.main, .{});
 }
+
+pub fn map_platform(root: *sabaton.paging.Root) void {
+    sabaton.paging.map(0, 0, 0x3000_0000, .rw, .mmio, root);
+    sabaton.paging.map(sabaton.upper_half_phys_base, 0, 0x3000_0000, .rw, .mmio, root);
+    sabaton.pci.init_from_dtb(root);
+}

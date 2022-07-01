@@ -25,3 +25,10 @@ export fn _main() linksection(".text.main") noreturn {
     sabaton.fw_cfg.init_from_dtb();
     @call(.{ .modifier = .always_inline }, sabaton.main, .{});
 }
+
+pub fn map_platform(root: *sabaton.paging.Root) void {
+    sabaton.paging.map(0, 0, 1024 * 1024 * 1024, .rw, .mmio, root);
+    sabaton.paging.map(sabaton.upper_half_phys_base, 0, 1024 * 1024 * 1024, .rw, .mmio, root);
+    sabaton.puts("Initing pci!\n");
+    sabaton.pci.init_from_dtb(root);
+}
