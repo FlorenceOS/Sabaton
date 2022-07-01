@@ -186,7 +186,7 @@ fn qemu_riscv(b: *Builder, desc: []const u8) !void {
         //"-smp", "8",
         "-device", "ramfb",
         "-fw_cfg", "opt/Sabaton/kernel,file=test/uart_riscv.elf",
-        "-drive", b.fmt("if=pflash,format=raw,file={s},readonly=on", .{blob_path}),
+        "-bios", blob_path,
         // zig fmt: on
     });
 
