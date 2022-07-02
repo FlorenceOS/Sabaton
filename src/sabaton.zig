@@ -88,7 +88,7 @@ pub const Stivale2tag = packed struct {
 
 const InfoStruct = struct {
     brand: [64]u8 = pad_str("Sabaton - Forged in Valhalla by the hammer of Thor", 64),
-    version: [64]u8 = pad_str(@import("build_options").board_name ++ " - " ++ @tagName(@import("builtin").mode), 64),
+    version: [64]u8 = pad_str(@tagName(arch) ++ " " ++ @import("build_options").board_name ++ " - " ++ @tagName(@import("builtin").mode), 64),
     tags: ?*Stivale2tag = null,
 };
 
