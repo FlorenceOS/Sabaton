@@ -113,8 +113,8 @@ fn assembly_blob(b: *Builder, arch: std.Target.Cpu.Arch, name: []const u8, asm_f
 
     return elf.installRaw(b.fmt("{s}.bin", .{elf_filename}), .{
         .format = .bin,
-        .only_section_name = ".blob",
-        .pad_to_size = null,
+        .only_section = ".blob",
+        .pad_to = null,
     });
 }
 
@@ -122,8 +122,8 @@ pub fn aarch64VirtBlob(b: *Builder) *std.build.InstallRawStep {
     const elf = try build_elf(b, .aarch64, "virt");
     return elf.installRaw(b.fmt("{s}.bin", .{elf.out_filename}), .{
         .format = .bin,
-        .only_section_name = ".blob",
-        .pad_to_size = 64 * 1024 * 1024, // 64M
+        .only_section = ".blob",
+        .pad_to = 64 * 1024 * 1024, // 64M
     });
 }
 
@@ -131,8 +131,8 @@ pub fn riscvVirtBlob(b: *Builder) *std.build.InstallRawStep {
     const elf = try build_elf(b, .riscv64, "virt");
     return elf.installRaw(b.fmt("{s}.bin", .{elf.out_filename}), .{
         .format = .bin,
-        .only_section_name = ".blob",
-        .pad_to_size = 32 * 1024 * 1024, // 64M
+        .only_section = ".blob",
+        .pad_to = 32 * 1024 * 1024, // 64M
     });
 }
 
@@ -199,8 +199,8 @@ fn qemu_pi3_aarch64(b: *Builder, desc: []const u8, elf: *std.build.LibExeObjStep
 
     const blob = elf.installRaw(b.fmt("{s}.bin", .{elf.out_filename}), .{
         .format = .bin,
-        .only_section_name = ".blob",
-        .pad_to_size = null,
+        .only_section = ".blob",
+        .pad_to = null,
     });
 
     const blob_path = b.getInstallPath(blob.dest_dir, blob.dest_filename);
@@ -314,8 +314,8 @@ pub fn build(b: *Builder) !void {
             const elf = try build_elf(b, dev.arch, dev.name);
             const blob_file = elf.installRaw(b.fmt("{s}_{s}.bin", .{dev.name, @tagName(dev.arch)}), .{
                 .format = .bin,
-                .only_section_name = ".blob",
-                .pad_to_size = null,
+                .only_section = ".blob",
+                .pad_to = null,
             });
             const s = b.step(dev.name, b.fmt("Build the blob for {s}", .{dev.name}));
             s.dependOn(&blob_file.step);
